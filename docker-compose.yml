@@ -1,0 +1,16 @@
+version: "3"
+services:
+
+  postgres_issuer:
+      container_name: postgres_issuer
+      image: postgres:latest
+      ports:
+        - "5433:5432"
+      volumes: 
+        - ./mediterraneus-issuer/postgresdata:/var/lib/postgresql/data
+        - ./mediterraneus-issuer/src/migrations/dbinit.sql:/docker-entrypoint-initdb.d/dbinit.sql
+      restart: always
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: issuer
+        POSTGRES_DB: identity
