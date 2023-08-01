@@ -1,7 +1,10 @@
 use std::env;
-use postgres::{Client, NoTls, Error};
-use anyhow::Ok;
-use actix_web::{web, App, HttpServer, middleware::Logger};
+use mediterraneus_issuer::issuer::issuer_wallet;
+use mediterraneus_issuer::{config::config, issuer::common};
+use mediterraneus_issuer::controllers::issuer_controller;
+use tokio_postgres::NoTls;
+use actix_web::{web, App, HttpServer, middleware::Logger, http};
+use actix_cors::Cors;
 
 // #[tokio::main]
 #[actix_web::main]
@@ -9,27 +12,38 @@ async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
 
+    let config = config::get_db_config();
+    let pool = config.create_pool(None, NoTls).unwrap();
+
     let address = env::var("ADDR").expect("$ADDR must be set.");
     let port = env::var("PORT").expect("$PORT must be set.").parse::<u16>().unwrap();
 
-    let usr = env::var("POSTGRES_USER").expect("$POSTGRES_USER must be set.");
-    let pass = env::var("POSTGRES_PASSWORD").expect("$POSTGRES_PASSWORD must be set.");
+    // first create or load issuer's identity.
+    let secret_manager = common::setup_secret_manager().await;
+    let _client = common::setup_client();
+    let client_options = common::setup_client_options();
+
+    let (_account_manager, _account) = issuer_wallet::create_or_load_wallet_account(secret_manager, client_options).await?;
+
+
     log::info!("Starting up on {}:{}", address, port);
+    HttpServer::new(move || {
+        let cors = Cors::default()
+        .allow_any_origin() 
+        .allowed_methods(vec!["GET", "POST"])
+        .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
+        .allowed_header(http::header::CONTENT_TYPE)
+        .max_age(3600);
 
-    let conn_string = &String::from("host=".to_owned() + &address + " user=" + &usr + " password=" + &pass + " port=5433 dbname=identity");
-    eprintln!("connection string: {}", conn_string);
-    // Connect to the database.
-    let mut client = Client::connect(&conn_string, NoTls).unwrap();
-
-    eprintln!("PostgreSql connection successfull!");
-    Ok(())
-    // HttpServer::new(move || {
-    //     App::new()
-    //         .app_data(web::Data::new(client))
-    //         .service(web::scope("/api"))
-    //         .wrap(Logger::default())
-    // })
-    // .bind((address, port))?
-    // .run()
-    // .await.map_err(anyhow::Error::from)
+        App::new()
+            .app_data(web::Data::new(pool.clone()))
+            .service(web::scope("/api")
+                .configure(issuer_controller::scoped_config)
+            )
+            .wrap(cors)
+            .wrap(Logger::default())
+    })
+    .bind((address, port))?
+    .run()
+    .await.map_err(anyhow::Error::from)
 }

@@ -14,5 +14,5 @@ Cargo.lock
 *.pdb
 
 .env
-
 postgresdata/
+wallet.stronghold

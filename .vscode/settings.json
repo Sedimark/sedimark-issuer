@@ -1,0 +1,6 @@
+{
+    "rust-analyzer.linkedProjects": [
+        ".\\mediterraneus-issuer\\Cargo.toml",
+    ],
+    "rust-analyzer.showUnlinkedFileNotification": false
+}

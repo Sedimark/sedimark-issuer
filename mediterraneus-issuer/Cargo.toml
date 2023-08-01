@@ -13,5 +13,16 @@ dotenv = "0.15.0"
 serde = { version = "1.0.164", features = ["derive"] }
 env_logger = "0.10.0"
 anyhow = "1.0.71"
-tokio = { version = "1.20.1", default-features = false, features = ["rt"] }
-postgres = "0.19.5"
+config = "0.13.1"
+deadpool-postgres = { version = "0.10.2", features = ["serde"] }
+tokio-pg-mapper = "0.2.0"
+tokio-pg-mapper-derive = "0.2.0"
+tokio-postgres = "0.7.6"
+actix-cors = "0.6.4"
+iota-client = { version = "2.0.1-rc.7" }
+iota-wallet = "1.0.0-rc.6"
+identity_iota = "0.7.0-alpha.5"
+
+[lib]
+name = "mediterraneus_issuer"
+path = "src/lib.rs"
