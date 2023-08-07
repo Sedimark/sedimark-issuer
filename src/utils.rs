@@ -22,8 +22,8 @@ pub async fn setup_secret_manager() -> SecretManager {
     .password(&env::var("STRONGHOLD_PASSWORD").unwrap())
     .build(PathBuf::from("../wallet.stronghold")).unwrap();
 
-    // let mnemonic = &env::var("NON_SECURE_MNEMONIC").unwrap();
-    let mnemonic = iota_client::generate_mnemonic().unwrap();
+    let mnemonic = &env::var("NON_SECURE_MNEMONIC").unwrap();
+    // let mnemonic = iota_client::generate_mnemonic().unwrap();
 
     // Only required the first time, can also be generated with `manager.generate_mnemonic()?`
     // The mnemonic only needs to be stored the first time
@@ -33,7 +33,7 @@ pub async fn setup_secret_manager() -> SecretManager {
         Err(error) => panic!("Error: {:?}", error)
     }
  
-    log::info!("Mnemonic generated {}. Save it.", mnemonic);
+    // log::info!("Mnemonic generated {}. Save it.", mnemonic);
     SecretManager::Stronghold(ss)
 }
 

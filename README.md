@@ -7,11 +7,7 @@ Issuer of verifiable credentials using smart contracts to bind the pseudonymous 
 
 ## Issuer initialization
 The issuer must posses an SSI comprising of at least a DID. At application start up the issuer creates a new identity or retrieves it from the local database. 
-This is an insecure implementation due to the clear-text storage of the sensitive information of its identity. This must be solved with the usage of 
-secure storage like Stronghold.
-
-However, the stringhold binding are not aligned with the current status of the identity framework. Hence, as soon as they will updated and published, this solution must
-be updated.
+This is an insecure implementation due to the clear-text storage of the sensitive information of its identity. This must be solved with the usage of secure storage solutions like Stronghold.
 
 ## Verifiable Credential Issuance
 Before issuing a VC the Issuer must perform the following operations:
@@ -19,5 +15,11 @@ Before issuing a VC the Issuer must perform the following operations:
 1. Resolve the requester's DID and retrieve the verification method public key.
 
 ## Running the Application
+```sh
+cd mediterraneus-issuer-rs/mediterraneus-issuer/src
 
+cargo run main
+```
+
+## Useful links
 https://github.com/actix/examples/blob/master/databases/postgres/src/main.rs
