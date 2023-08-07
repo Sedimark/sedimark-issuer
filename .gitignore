@@ -14,6 +14,7 @@ Cargo.lock
 *.pdb
 
 .env
+.vscode
 postgresdata/
 wallet.stronghold
 walletdb/

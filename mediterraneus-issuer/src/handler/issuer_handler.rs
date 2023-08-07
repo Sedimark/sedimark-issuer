@@ -11,7 +11,7 @@ use crate::dtos::identity_dtos::ReqVCInitDTO;
 /// @param res 
 ///
 #[post("")]
-async fn req_vcinit(req_body: web::Json<ReqVCInitDTO>, pool: web::Data<Pool>) -> impl Responder {
+async fn req_vcinit(_req_body: web::Json<ReqVCInitDTO>, _pool: web::Data<Pool>) -> impl Responder {
     let resp = HttpResponse::Accepted();
     resp
 }

@@ -1,12 +1,13 @@
 use std::env;
-use mediterraneus_issuer::issuer::issuer_wallet;
-use mediterraneus_issuer::{config::config, issuer::common};
-use mediterraneus_issuer::controllers::issuer_controller;
+use mediterraneus_issuer::services::{issuer_wallet, issuer_identity};
+use mediterraneus_issuer::config::config;
+use mediterraneus_issuer::handler::issuer_handler;
+use mediterraneus_issuer::utils::{setup_client, ensure_address_has_funds};
 use tokio_postgres::NoTls;
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
 use actix_cors::Cors;
 
-// #[tokio::main]
+
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
@@ -19,13 +20,20 @@ async fn main() -> anyhow::Result<()> {
     let port = env::var("PORT").expect("$PORT must be set.").parse::<u16>().unwrap();
 
     // first create or load issuer's identity.
-    let secret_manager = common::setup_secret_manager().await;
-    let _client = common::setup_client();
-    let client_options = common::setup_client_options();
+    let client = setup_client();
+    let faucet_endpoint = env::var("FAUCET_URL").expect("$FAUCET_URL must be set");
 
-    let (_account_manager, _account) = issuer_wallet::create_or_load_wallet_account(secret_manager, client_options).await?;
+    let (account_manager, account) = issuer_wallet::create_or_load_wallet_account().await?;
+    let wallet_address = account.addresses().await?[0].address().clone();
 
+    ensure_address_has_funds(&client.clone(), wallet_address.as_ref().clone(), &faucet_endpoint.clone()).await?;
+    
+    let secret_manager = account_manager.get_secret_manager();
+    let _issuer_identity = issuer_identity::create_identity(
+        &client.clone(), wallet_address.as_ref().clone(), &mut *secret_manager.write().await, pool.clone())
+        .await?;
 
+    
     log::info!("Starting up on {}:{}", address, port);
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -38,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .service(web::scope("/api")
-                .configure(issuer_controller::scoped_config)
+                .configure(issuer_handler::scoped_config)
             )
             .wrap(cors)
             .wrap(Logger::default())

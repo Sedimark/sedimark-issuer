@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
 use tokio_pg_mapper_derive::PostgresMapper;
 
-#[derive(Deserialize, PostgresMapper, Serialize)]
+#[derive(Deserialize, PostgresMapper, Serialize, Clone)]
 #[pg_mapper(table = "identity")] 
 pub struct Identity {
     pub did: String,
-    pub priv_key: String,
+    pub privkey: Vec<u8>,
 }
 
 #[derive(Deserialize, PostgresMapper, Serialize)]
