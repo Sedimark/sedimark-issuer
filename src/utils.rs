@@ -1,7 +1,10 @@
+use ethers::prelude::Contract;
 use iota_wallet::ClientOptions;
 use iota_client::{Client, secret::{SecretManager, stronghold::StrongholdSecretManager}, block::{address::Address, output::Output}, node_api::indexer::query_parameters::QueryParameter};
 use std::{env, path::PathBuf};
 use anyhow::Context;
+use reqwest;
+use serde_json::{self, json};
 
 pub fn setup_client_options() -> ClientOptions { 
     dotenv::dotenv().ok();
@@ -104,3 +107,21 @@ pub async fn ensure_address_has_funds(client: &Client, address: Address, faucet_
     }
     Ok(())
   }
+
+pub async fn get_contract_abi() -> Result<(), ()> {
+  dotenv::dotenv().ok();
+  let shimmer_evm_explorer: String = env::var("SHIMMER_EVM_EXPLORER").unwrap();
+  let contract_address = env::var("IDENTITY_SC_ADDRESS").unwrap();
+
+  let url = String::from(shimmer_evm_explorer + "/api?module=contract&action=getabi&address=" + &contract_address);
+  log::info!("Downloading ABI from {}", url);
+  let body = reqwest::get(url)
+    .await.unwrap()
+    .text()
+    .await.unwrap();
+
+  let json_abi: serde_json::Value = serde_json::from_str(body.as_str()).unwrap();
+  // let contract_istance = Contract::new(ethers::addressbook::Address::from(contract_address), json_abi, client);
+  log::info!("Got {}", body);
+  Ok(())
+}

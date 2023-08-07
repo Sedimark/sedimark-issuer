@@ -1,0 +1,1 @@
+DELETE FROM holder_request WHERE did=$1;

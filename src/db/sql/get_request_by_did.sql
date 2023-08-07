@@ -1,0 +1,1 @@
+SELECT $table_fields FROM holder_request WHERE did=$1;

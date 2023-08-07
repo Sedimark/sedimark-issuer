@@ -12,7 +12,7 @@ use iota_client::block::output::AliasOutput;
 use iota_client::secret::SecretManager;
 use crate::db::operations;
 use crate::db::operations::insert_identity_issuer;
-use crate::{models::models::Identity, errors::my_errors::MyError};
+use crate::{db::models::Identity, errors::my_errors::MyError};
 
 pub async fn create_identity(client: &Client, wallet_address: Address, secret_manager: &mut SecretManager, pool: Pool) -> Result<Identity, MyError> {
     // check if DID is already available

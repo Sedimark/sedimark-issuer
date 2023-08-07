@@ -1,7 +1,7 @@
 use actix_web::{web, HttpResponse, Responder, post, get};
 use deadpool_postgres::Pool;
 
-use crate::dtos::identity_dtos::ReqVCInitDTO;
+use crate::{dtos::identity_dtos::ReqVCInitDTO, services::issuer_vc::check_and_clean_holder_requests};
 
 ///
 /// Store did with expiration so that the client should resend the signatures in a short time.
@@ -11,7 +11,19 @@ use crate::dtos::identity_dtos::ReqVCInitDTO;
 /// @param res 
 ///
 #[post("")]
-async fn req_vcinit(_req_body: web::Json<ReqVCInitDTO>, _pool: web::Data<Pool>) -> impl Responder {
+async fn req_vcinit(req_body: web::Json<ReqVCInitDTO>, pool: web::Data<Pool>) -> impl Responder {
+    match check_and_clean_holder_requests(pool.get_ref().to_owned(), req_body.did.to_string()).await {
+        true => {
+            // get VC id from IDSC
+            // create VC
+            // hash the created VC
+            // if no error store holder request (did, request expiration, VC)
+            // send back the H(VC)    
+        },
+        false => {
+            // return error (400 status code)
+        },
+    };
     let resp = HttpResponse::Accepted();
     resp
 }

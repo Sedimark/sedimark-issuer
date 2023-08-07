@@ -1,12 +1,15 @@
 use std::env;
+use mediterraneus_issuer::IssuerState;
 use mediterraneus_issuer::services::{issuer_wallet, issuer_identity};
 use mediterraneus_issuer::config::config;
 use mediterraneus_issuer::handler::issuer_handler;
-use mediterraneus_issuer::utils::{setup_client, ensure_address_has_funds};
+use mediterraneus_issuer::utils::{setup_client, ensure_address_has_funds, get_contract_abi};
 use tokio_postgres::NoTls;
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
 use actix_cors::Cors;
-
+use ethers::providers::{Provider, Http};
+use ethers::middleware::SignerMiddleware;
+use ethers::signers::LocalWallet;
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
@@ -29,11 +32,17 @@ async fn main() -> anyhow::Result<()> {
     ensure_address_has_funds(&client.clone(), wallet_address.as_ref().clone(), &faucet_endpoint.clone()).await?;
     
     let secret_manager = account_manager.get_secret_manager();
-    let _issuer_identity = issuer_identity::create_identity(
+    let issuer_identity = issuer_identity::create_identity(
         &client.clone(), wallet_address.as_ref().clone(), &mut *secret_manager.write().await, pool.clone())
         .await?;
 
-    
+    let provider = Provider::<Http>::try_from(env::var("SHIMMER_JSON_RPC_URL").expect("$SHIMMER_JSON_RPC_URL must be set"))?;
+    // Transactions will be signed with the private key below
+    let eth_wallet: LocalWallet = env::var("PRIVATE_KEY").expect("$PRIVATE_KEY must be set").parse()?;
+    let eth_client = SignerMiddleware::new(provider, eth_wallet);
+
+    get_contract_abi().await.unwrap();
+
     log::info!("Starting up on {}:{}", address, port);
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -45,6 +54,14 @@ async fn main() -> anyhow::Result<()> {
 
         App::new()
             .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(
+                IssuerState {
+                    issuer_account: account.clone(),
+                    secret_manager: secret_manager.clone(),
+                    issuer_identity: issuer_identity.clone(),
+                    eth_client: eth_client.clone()
+                })
+            )
             .service(web::scope("/api")
                 .configure(issuer_handler::scoped_config)
             )

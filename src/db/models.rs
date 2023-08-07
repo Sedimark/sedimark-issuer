@@ -8,11 +8,18 @@ pub struct Identity {
     pub privkey: Vec<u8>,
 }
 
-#[derive(Deserialize, PostgresMapper, Serialize)]
+#[derive(Deserialize, PostgresMapper, Serialize, Clone)]
 #[pg_mapper(table = "holder_request")] 
 pub struct HolderRequest {
     pub vc_hash: String,
     pub did: String,
     pub request_expiration: String,
     pub vc: String
+}
+
+pub fn is_empty_request(request: HolderRequest) -> bool {
+    if request.did.len() > 0 && request.request_expiration.len() > 0 && request.vc.len() > 0 && request.vc_hash.len() > 0 {
+        return false;
+    }
+    return true;
 }
