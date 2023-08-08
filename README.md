@@ -16,7 +16,7 @@ Before issuing a VC the Issuer must perform the following operations:
 
 ## Running the Application
 ```sh
-cd mediterraneus-issuer-rs/mediterraneus-issuer/src
+cd mediterraneus-issuer-rs/src
 
 cargo run main
 ```

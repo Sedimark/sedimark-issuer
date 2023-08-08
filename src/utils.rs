@@ -1,3 +1,4 @@
+use identity_iota::{prelude::{IotaDID, IotaDocument}, verification::MethodScope};
 use iota_wallet::ClientOptions;
 use iota_client::{Client, secret::{SecretManager, stronghold::StrongholdSecretManager}, block::{address::Address, output::Output}, node_api::indexer::query_parameters::QueryParameter};
 use std::{env, path::PathBuf, path::Path};
@@ -147,4 +148,12 @@ pub fn get_abi_from_file() -> String {
     data
   };
   abi
+}
+
+pub fn convert_string_to_iotadid(did: String) -> IotaDID {
+  IotaDID::parse(did).unwrap()
+}
+
+pub fn extract_pub_key_from_doc(did_doc: IotaDocument) -> Vec<u8> {
+  did_doc.methods(Some(MethodScope::VerificationMethod))[0].data().try_decode().unwrap()
 }

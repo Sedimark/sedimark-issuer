@@ -1,6 +1,14 @@
 use deadpool_postgres::Pool;
+use ethers::types::U256;
+use identity_iota::core::FromJson;
+use identity_iota::core::Url;
+use identity_iota::credential::Credential;
+use identity_iota::credential::CredentialBuilder;
+use identity_iota::credential::Subject;
 use identity_iota::crypto::KeyPair;
 use identity_iota::crypto::KeyType;
+use identity_iota::crypto::PrivateKey;
+use identity_iota::crypto::ProofOptions;
 use identity_iota::iota::IotaDocument;
 use identity_iota::iota::IotaIdentityClientExt;
 use identity_iota::prelude::IotaClientExt;
@@ -10,8 +18,10 @@ use iota_client::Client;
 use iota_client::block::address::Address;
 use iota_client::block::output::AliasOutput;
 use iota_client::secret::SecretManager;
+use serde_json::json;
 use crate::db::operations;
 use crate::db::operations::insert_identity_issuer;
+use crate::utils::convert_string_to_iotadid;
 use crate::{db::models::Identity, errors::my_errors::MyError};
 
 pub async fn create_identity(client: &Client, wallet_address: Address, secret_manager: &mut SecretManager, pool: Pool) -> Result<Identity, MyError> {
@@ -46,3 +56,34 @@ pub async fn create_identity(client: &Client, wallet_address: Address, secret_ma
     insert_identity_issuer(&pool.get().await.unwrap(), new_issuer_identity.clone()).await?;
     Ok(new_issuer_identity)
 }  
+
+pub async fn resolve_did(client: Client, holder_did: String) -> Result<IotaDocument, identity_iota::iota::Error> {
+    let did = convert_string_to_iotadid(holder_did);
+    let resolved_doc = client.resolve_did(&did).await?;
+
+    Ok(resolved_doc)
+}
+
+pub async fn create_vc(holder_did: String, vc_id: U256, issuer_identity: Identity, client: Client)  {
+    // Create a credential subject indicating the degree earned by Alice.
+    let subject: Subject = Subject::from_json_value(json!({
+        "id": holder_did,
+        "name": "Alice",
+        "degree": {
+        "type": "BachelorDegree",
+        "name": "Bachelor of Science and Arts",
+        },
+        "GPA": "4.0",
+    })).unwrap();
+
+    // Build credential using subject above and issuer.
+    let mut credential: Credential = CredentialBuilder::default()
+    .id(Url::parse("https://example.edu/credentials/3732").unwrap())
+    .issuer(Url::parse(issuer_identity.did.clone()).unwrap())
+    .type_("UniversityDegreeCredential")
+    .subject(subject)
+    .build().unwrap();
+
+    let issuer_doc = resolve_did(client, issuer_identity.did.clone()).await.unwrap();
+    issuer_doc.sign_data(&mut credential, &PrivateKey::try_from(issuer_identity.privkey.clone()).unwrap(), "#key1", ProofOptions::default()).unwrap();
+}
