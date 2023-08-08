@@ -23,3 +23,5 @@ cargo run main
 
 ## Useful links
 https://github.com/actix/examples/blob/master/databases/postgres/src/main.rs
+
+https://docs.rs/ethers/latest/ethers/contract/struct.ContractInstance.html

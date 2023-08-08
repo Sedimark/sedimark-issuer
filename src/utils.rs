@@ -1,10 +1,13 @@
-use ethers::prelude::Contract;
 use iota_wallet::ClientOptions;
 use iota_client::{Client, secret::{SecretManager, stronghold::StrongholdSecretManager}, block::{address::Address, output::Output}, node_api::indexer::query_parameters::QueryParameter};
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, path::Path};
 use anyhow::Context;
 use reqwest;
-use serde_json::{self, json};
+use serde_json::{self};
+use std::fs::File;
+use std::io::prelude::*;
+
+use crate::dtos::identity_dtos::AbiDTO;
 
 pub fn setup_client_options() -> ClientOptions { 
     dotenv::dotenv().ok();
@@ -108,7 +111,7 @@ pub async fn ensure_address_has_funds(client: &Client, address: Address, faucet_
     Ok(())
   }
 
-pub async fn get_contract_abi() -> Result<(), ()> {
+pub async fn download_contract_abi_file() -> Result<(), ()> {
   dotenv::dotenv().ok();
   let shimmer_evm_explorer: String = env::var("SHIMMER_EVM_EXPLORER").unwrap();
   let contract_address = env::var("IDENTITY_SC_ADDRESS").unwrap();
@@ -120,8 +123,28 @@ pub async fn get_contract_abi() -> Result<(), ()> {
     .text()
     .await.unwrap();
 
-  let json_abi: serde_json::Value = serde_json::from_str(body.as_str()).unwrap();
-  // let contract_istance = Contract::new(ethers::addressbook::Address::from(contract_address), json_abi, client);
-  log::info!("Got {}", body);
+  let mut file = File::create("../abi/idsc_abi.json.").unwrap();
+  let correct_json: AbiDTO = serde_json::from_str(&body).unwrap();
+  file.write_all(correct_json.result.as_bytes()).unwrap();
+
   Ok(())
+}
+
+pub fn is_abi_downloaded() -> bool {
+  if Path::new("../abi/idsc_abi.json").exists() == true && Path::new("../abi/idsc_abi.json").metadata().unwrap().len() > 0 {
+      return true
+  };  
+  return false;
+}
+
+pub fn get_abi_from_file() -> String {
+  let abi = if is_abi_downloaded() == false {
+    "".to_string()
+  } else {
+    let mut file = File::open(Path::new("C:\\Users\\DavideScovotto\\mediterraneus-issuer-rs\\abi\\idsc_abi.json")).unwrap();
+    let mut data = String::new();
+    file.read_to_string(&mut data).unwrap();
+    data
+  };
+  abi
 }

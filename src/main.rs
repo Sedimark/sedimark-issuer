@@ -1,9 +1,11 @@
 use std::env;
-use mediterraneus_issuer::IssuerState;
+use std::sync::Arc;
+use mediterraneus_issuer::{IssuerState, EthClient, LocalContractInstance};
+use mediterraneus_issuer::services::issuer_wallet::setup_eth_wallet;
 use mediterraneus_issuer::services::{issuer_wallet, issuer_identity};
 use mediterraneus_issuer::config::config;
 use mediterraneus_issuer::handler::issuer_handler;
-use mediterraneus_issuer::utils::{setup_client, ensure_address_has_funds, get_contract_abi};
+use mediterraneus_issuer::utils::{setup_client, ensure_address_has_funds};
 use tokio_postgres::NoTls;
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
 use actix_cors::Cors;
@@ -39,9 +41,9 @@ async fn main() -> anyhow::Result<()> {
     let provider = Provider::<Http>::try_from(env::var("SHIMMER_JSON_RPC_URL").expect("$SHIMMER_JSON_RPC_URL must be set"))?;
     // Transactions will be signed with the private key below
     let eth_wallet: LocalWallet = env::var("PRIVATE_KEY").expect("$PRIVATE_KEY must be set").parse()?;
-    let eth_client = SignerMiddleware::new(provider, eth_wallet);
+    let eth_client: Arc<EthClient> = Arc::new(SignerMiddleware::new(provider, eth_wallet.clone()));
 
-    get_contract_abi().await.unwrap();
+    let idsc_instance: LocalContractInstance = setup_eth_wallet(eth_client.clone()).await;
 
     log::info!("Starting up on {}:{}", address, port);
     HttpServer::new(move || {
@@ -59,7 +61,8 @@ async fn main() -> anyhow::Result<()> {
                     issuer_account: account.clone(),
                     secret_manager: secret_manager.clone(),
                     issuer_identity: issuer_identity.clone(),
-                    eth_client: eth_client.clone()
+                    eth_client: eth_client.clone(),
+                    idsc_instance: idsc_instance.clone()
                 })
             )
             .service(web::scope("/api")

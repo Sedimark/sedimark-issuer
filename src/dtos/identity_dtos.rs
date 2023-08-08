@@ -12,3 +12,10 @@ pub struct ReqVCProofsDTO {
     pub ssi_signature: String,
     pub pseudo_signature: String
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct AbiDTO {
+    pub message: String,
+    pub result: String,
+    pub status: String
+}

@@ -58,7 +58,7 @@ pub async fn get_holder_request_by_did(client: &Client, did: String) -> Result<H
         Ok(holder_request) => HolderRequest::from_row_ref(&holder_request).unwrap(),
         Err(db_error) => {
             log::info!("Issuer identity not present in DB: {:?}", db_error);
-            HolderRequest {did: "".to_string(), vc_hash: "".to_string(), request_expiration: "".to_string(), vc: "".to_string() }
+            HolderRequest {did: "".to_string(), vchash: "".to_string(), request_expiration: "".to_string(), vc: "".to_string() }
         },
     };
         
