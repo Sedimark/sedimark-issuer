@@ -1,6 +1,6 @@
 use actix_web::{web, HttpResponse, Responder, post, get};
 use deadpool_postgres::Pool;
-use crate::{dtos::identity_dtos::ReqVCInitDTO, services::{issuer_vc::check_and_clean_holder_requests, idsc_wrappers::get_free_vc_id, issuer_identity::create_vc}, IssuerState};
+use crate::{dtos::identity_dtos::ReqVCInitDTO, services::{issuer_vc::check_and_clean_holder_requests, idsc_wrappers::get_free_vc_id, issuer_identity::create_hash_and_store_vc}, IssuerState};
 use ethers::types::U256;
 ///
 /// Store did with expiration so that the client should resend the signatures in a short time.
@@ -18,17 +18,18 @@ async fn req_vcinit(
         true => {
             // get VC id from IDSC
             let free_vc_id: U256 = get_free_vc_id(issuer_state.idsc_instance.clone(), issuer_state.eth_client.clone()).await;
-            // create VC and hash it
-            create_vc(
+            // create VC, hash, 
+            // if no error store holder request (did, request expiration, VC)
+            let holder_request = create_hash_and_store_vc(
+                pool.get_ref().to_owned(),
                 req_body.did.clone(), 
                 free_vc_id.clone(), 
                 issuer_state.issuer_identity.clone(), 
                 issuer_state.issuer_account.client().clone())
-            .await;
-            // if no error store holder request (did, request expiration, VC)
-            // send back the H(VC)    
+            .await.unwrap();
 
-            HttpResponse::Ok().body(free_vc_id.to_string())
+            // send back the H(VC)    
+            HttpResponse::Ok().body(holder_request.vchash)
             // HttpResponse::Ok().body("1".to_string())
         },
         false => {

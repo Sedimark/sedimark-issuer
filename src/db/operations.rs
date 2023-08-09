@@ -1,5 +1,6 @@
 use std::vec;
 use deadpool_postgres::Client;
+use identity_iota::core::Timestamp;
 use tokio_pg_mapper::FromTokioPostgresRow;
 
 use crate::{db::models::Identity, errors::my_errors::MyError};
@@ -63,6 +64,29 @@ pub async fn get_holder_request_by_did(client: &Client, did: String) -> Result<H
     };
         
     Ok(holder_request_row)
+}
+
+pub async fn insert_holder_request(client: &Client, vc: String, vc_hash: String, did: String, expiration: Timestamp) -> Result<HolderRequest, MyError>{
+    let _stmt = include_str!("./sql/insert_holder_request.sql");
+    let _stmt = _stmt.replace("$table_fields", &HolderRequest::sql_table_fields());
+    let stmt = client.prepare(&_stmt).await.unwrap();
+
+    client
+            .query(
+                &stmt,
+                &[
+                    &vc_hash,
+                    &did,
+                    &expiration.to_rfc3339(),
+                    &vc
+                ],
+            )
+            .await?
+            .iter()
+            .map(|row| HolderRequest::from_row_ref(row).unwrap())
+            .collect::<Vec<HolderRequest>>()
+            .pop()
+            .ok_or(MyError::NotFound) // more applicable for SELECTs
 }
 
 pub async fn remove_holder_request_by_did(client: &Client, did: String) {
