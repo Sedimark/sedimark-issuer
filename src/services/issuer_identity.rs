@@ -1,16 +1,11 @@
 use deadpool_postgres::Pool;
-use ethers::types::U256;
-use identity_iota::core::{FromJson, Url, ToJson, Timestamp, Duration};
-use identity_iota::credential::{Credential, CredentialBuilder, CredentialValidationOptions, CredentialValidator, FailFast, Subject};
-use identity_iota::crypto::{KeyPair, KeyType, PrivateKey, ProofOptions};
+use identity_iota::crypto::{KeyPair, KeyType};
 use identity_iota::iota::{IotaDocument, IotaIdentityClientExt};
 use identity_iota::prelude::IotaClientExt;
 use identity_iota::verification::{MethodScope, VerificationMethod};
 use iota_client::{Client, block::{address::Address, output::AliasOutput}};
 use iota_client::secret::SecretManager;
-use serde_json::json;
-use crate::db::models::HolderRequest;
-use crate::db::operations::{self, insert_holder_request};
+use crate::db::operations::{self};
 use crate::db::operations::insert_identity_issuer;
 use crate::utils::convert_string_to_iotadid;
 use crate::{db::models::Identity, errors::my_errors::MyError};
@@ -53,60 +48,4 @@ pub async fn resolve_did(client: Client, holder_did: String) -> Result<IotaDocum
     let resolved_doc = client.resolve_did(&did).await?;
 
     Ok(resolved_doc)
-}
-
-pub async fn create_vc(holder_did: String, vc_id: U256, issuer_identity: Identity, client: Client) -> Result<Credential, ()> {
-    // Create a credential subject indicating the degree earned by Alice.
-    let subject: Subject = Subject::from_json_value(json!({
-        "id": holder_did,
-        "name": "Alice",
-        "degree": {
-        "type": "BachelorDegree",
-        "name": "Bachelor of Science and Arts",
-        },
-        "GPA": "4.0",
-    })).unwrap();
-
-    // Build credential using subject above and issuer.
-    let mut credential_id = "https://example.edu/credentials/".to_owned();
-    credential_id.push_str(vc_id.to_owned().to_string().as_str());
-    let mut credential: Credential = CredentialBuilder::default()
-    .id(Url::parse(credential_id).unwrap())
-    .issuer(Url::parse(issuer_identity.did.clone()).unwrap())
-    .type_("MarketplaceCredential")
-    .subject(subject)
-    .build().unwrap();
-
-    let issuer_doc = resolve_did(client, issuer_identity.did.clone()).await.unwrap();
-    issuer_doc.sign_data(&mut credential, &PrivateKey::try_from(issuer_identity.privkey.clone()).unwrap(), "#key-1", ProofOptions::default()).unwrap();
-
-    // Validate the credential's signature using the issuer's DID Document, the credential's semantic structure,
-    // that the issuance date is not in the future and that the expiration date is not in the past:
-    CredentialValidator::validate(
-        &credential,
-        &issuer_doc,
-        &CredentialValidationOptions::default(),
-        FailFast::FirstError,
-    )
-    .unwrap();
-
-    Ok(credential)
-}
-
-pub fn hash_vc(vc: Credential) -> Vec<u8> {
-    ethers::utils::keccak256(vc.to_json_vec().unwrap()).to_vec()
-}
-
-pub async fn create_hash_and_store_vc(pool: Pool, holder_did: String, vc_id: U256, issuer_identity: Identity, iota_client: Client) -> Result<HolderRequest, MyError> {
-    let vc = create_vc(holder_did.clone(), vc_id, issuer_identity, iota_client).await.unwrap();
-    let vc_digest = hash_vc(vc.clone());
-
-    let expiration = Timestamp::now_utc().checked_add(Duration::minutes(1)).unwrap();
-    insert_holder_request(
-        &pool.get().await.unwrap(), 
-        vc.clone().to_json().unwrap(), 
-        vc_digest.to_json().unwrap().to_string(), 
-        holder_did.clone(),
-        expiration
-    ).await
 }

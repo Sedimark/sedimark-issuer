@@ -66,6 +66,27 @@ pub async fn get_holder_request_by_did(client: &Client, did: String) -> Result<H
     Ok(holder_request_row)
 }
 
+pub async fn get_holder_request_by_vc_hash(client: &Client, vchash: String) -> Result<HolderRequest, MyError> {
+    let _stmt = include_str!("./sql/get_request_by_vc_hash.sql");
+    let _stmt = _stmt.replace("$table_fields", &HolderRequest::sql_table_fields());
+    let stmt = client.prepare(&_stmt).await.unwrap();
+
+    let holder_request_row = match client.query_one(
+        &stmt, 
+        &[
+            &vchash
+        ],
+    ).await {
+        Ok(holder_request) => HolderRequest::from_row_ref(&holder_request).unwrap(),
+        Err(db_error) => {
+            log::info!("Issuer identity not present in DB: {:?}", db_error);
+            HolderRequest {did: "".to_string(), vchash: "".to_string(), request_expiration: "".to_string(), vc: "".to_string() }
+        },
+    };
+        
+    Ok(holder_request_row)
+}
+
 pub async fn insert_holder_request(client: &Client, vc: String, vc_hash: String, did: String, expiration: Timestamp) -> Result<HolderRequest, MyError>{
     let _stmt = include_str!("./sql/insert_holder_request.sql");
     let _stmt = _stmt.replace("$table_fields", &HolderRequest::sql_table_fields());
