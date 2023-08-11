@@ -118,3 +118,12 @@ pub async fn remove_holder_request_by_did(client: &Client, did: String) {
         &did
     ]).await.unwrap();
 }
+
+pub async fn remove_holder_request_by_vchash(client: &Client, vchash: String) {
+    let _stmt = include_str!("./sql/remove_holder_request_by_vchash.sql");
+    let stmt = client.prepare(&_stmt).await.unwrap();
+
+    client.query(&stmt, &[
+        &vchash
+    ]).await.unwrap();
+}

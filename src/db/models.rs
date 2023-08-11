@@ -8,7 +8,7 @@ pub struct Identity {
     pub privkey: Vec<u8>,
 }
 
-#[derive(Deserialize, PostgresMapper, Serialize, Clone)]
+#[derive(Deserialize, PostgresMapper, Serialize, Clone, Debug)]
 #[pg_mapper(table = "holder_request")] 
 pub struct HolderRequest {
     pub vchash: String,

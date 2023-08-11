@@ -1,4 +1,4 @@
-use identity_iota::{prelude::{IotaDID, IotaDocument}, verification::MethodScope, credential::Credential, core::Timestamp};
+use identity_iota::{prelude::{IotaDID, IotaDocument}, verification::MethodScope, credential::Credential};
 use iota_wallet::ClientOptions;
 use iota_client::{Client, secret::{SecretManager, stronghold::StrongholdSecretManager}, block::{address::Address, output::Output}, node_api::indexer::query_parameters::QueryParameter};
 use std::{env, path::PathBuf, path::Path};
@@ -162,11 +162,11 @@ pub fn get_vc_id_from_credential(vc: Credential) -> i64 {
   let full_id = vc.id.unwrap();
 
   let split: Vec<&str> = full_id.as_str().split("/").collect();
-  let id = split.get(split.len()).unwrap().to_owned();
+  let id = split.get(split.len() - 1).unwrap().to_owned();
   let num: i64 = id.parse().unwrap();
   num
 }
 
-pub fn get_unix_from_timestamp(time: Timestamp) -> i64 {
-  time.to_unix()
+pub fn remove_0x_prefix(hex_string: String) -> String {
+  hex_string.strip_prefix("0x").unwrap().to_string()
 }

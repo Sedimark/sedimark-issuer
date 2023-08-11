@@ -1,8 +1,9 @@
 use actix_web::{web, HttpResponse, Responder, post, get};
 use deadpool_postgres::Pool;
+use ethers::utils::hex::FromHex;
 use identity_iota::crypto::Ed25519;
 use iota_client::crypto::signatures::ed25519::{PublicKey, Signature};
-use crate::{dtos::identity_dtos::{ReqVCInitDTO, ReqVCProofsDTO}, 
+use crate::{dtos::identity_dtos::{ReqVCInitDTO, ReqVCProofsDTO, VcHashResponse, VcIssuingResponse}, 
             services::{issuer_vc::{check_and_clean_holder_requests, register_new_vc}, 
             issuer_vc::create_hash_and_store_vc, issuer_identity::resolve_did}, 
             IssuerState, db::{operations::get_holder_request_by_vc_hash, models::is_empty_request}, utils::extract_pub_key_from_doc};
@@ -28,7 +29,7 @@ async fn req_vcinit(
             .await.unwrap();
 
             // send back the H(VC)    
-            HttpResponse::Ok().body(holder_request.vchash)
+            HttpResponse::Ok().body(serde_json::to_string::<VcHashResponse>(&VcHashResponse {vchash: holder_request.vchash}).unwrap())
         },
         false => {
             HttpResponse::BadRequest().body("Holder has still a pending reauest".to_string())
@@ -40,7 +41,7 @@ async fn req_vcinit(
 /// Verifies the SSI signature and fills up the IDSC (also with the pseudo signature).
 /// @param req --> vc_hash, ssi_signature, psuedo_signature
 /// @param res --> 200, 400, 500
-#[post("")]
+#[post("2")]
 async fn req_vc_proofs(
     req_body: web::Json<ReqVCProofsDTO>, 
     pool: web::Data<Pool>,
@@ -50,33 +51,44 @@ async fn req_vc_proofs(
     let holder_request = get_holder_request_by_vc_hash(&pool.get().await.unwrap(), req_body.vc_hash.clone()).await.unwrap();
     // first check request is valid (anti replay, the hash serves as nonce)
     let resp = match is_empty_request(holder_request.clone()) {
-        true => { // request is valid
+        false => { // request is not empty ==>  valid
             // resolve DID Doc and extract public key
             let holder_did_document = resolve_did(issuer_state.issuer_account.client().clone(), holder_request.did.clone()).await.unwrap();
             let holder_pub_key = extract_pub_key_from_doc(holder_did_document.clone());
             
+
             let key = PublicKey::try_from_bytes(<[u8; Ed25519::PUBLIC_KEY_LENGTH]>::try_from(holder_pub_key).unwrap()).unwrap();
             match key.verify(
-                &Signature::from_bytes(<[u8; Ed25519::SIGNATURE_LENGTH]>::try_from(req_body.ssi_signature.as_bytes()).unwrap()), 
+                &Signature::from_bytes(<[u8; Ed25519::SIGNATURE_LENGTH]>::try_from(Vec::from_hex(req_body.ssi_signature.clone()).unwrap()).unwrap()), 
                 holder_request.vchash.as_bytes()
             ) {
                 true => {
                     register_new_vc(
+                        &pool,
                         issuer_state.get_ref().to_owned(), 
-                        holder_request.vc, 
+                        holder_request.vc.clone(), 
                         holder_request.vchash, 
-                        req_body.pseudo_signature.clone(), 
+                        req_body.pseudo_sign.clone(), 
                         holder_request.did
-                    ).await;
-                    HttpResponse::Ok().body("body".to_string())
+                    ).await.unwrap();
+
+                    HttpResponse::Ok().body(serde_json::to_string::<VcIssuingResponse>(
+                        &VcIssuingResponse { 
+                            message: "VC issued. In order to activate it contact the IDentity SC.".to_string(), 
+                            vc: holder_request.vc
+                        }
+                    ).unwrap())
                 },
                 false => {
-                    HttpResponse::BadRequest().body("Invalid ssi_signature".to_string())
+                    HttpResponse::BadRequest()
+                    .body(serde_json::to_string(&VcHashResponse {vchash: "Invalid ssi_signature".to_string()}).unwrap())
                 },
             }
         },
-        false => { // request is not valid
-            HttpResponse::BadRequest().body("Invalid ssi_signature".to_string())
+        true => { // request is not valid
+            HttpResponse::BadRequest()
+            .body(serde_json::to_string(&VcHashResponse {vchash: "Holder request does not exist".to_string()})
+            .unwrap())
         },
     };
     resp

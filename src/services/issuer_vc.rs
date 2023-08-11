@@ -1,9 +1,10 @@
 use deadpool_postgres::Pool;
+use ethers::utils::hex;
 use identity_iota::{core::{Timestamp, FromJson, Url, ToJson, Duration}, credential::{Credential, Subject, CredentialBuilder, CredentialValidator, CredentialValidationOptions, FailFast}, crypto::{PrivateKey, ProofOptions}};
 use iota_client::Client;
 use iota_wallet::U256;
 use serde_json::{json, Value};
-use crate::{db::{operations::{get_holder_request_by_did, remove_holder_request_by_did, insert_holder_request}, models::{is_empty_request, Identity, HolderRequest}}, IssuerState, errors::my_errors::MyError, utils::{get_vc_id_from_credential, get_unix_from_timestamp}};
+use crate::{db::{operations::{get_holder_request_by_did, remove_holder_request_by_did, insert_holder_request, remove_holder_request_by_vchash}, models::{is_empty_request, Identity, HolderRequest}}, IssuerState, errors::my_errors::MyError, utils::get_vc_id_from_credential};
 
 use super::{issuer_identity::resolve_did, idsc_wrappers::{get_free_vc_id, register_new_vc_idsc}};
 
@@ -48,6 +49,7 @@ async fn create_vc(holder_did: String, vc_id: U256, issuer_identity: Identity, c
     .id(Url::parse(credential_id).unwrap())
     .issuer(Url::parse(issuer_identity.did.clone()).unwrap())
     .type_("MarketplaceCredential")
+    .expiration_date(Timestamp::now_utc().checked_add(Duration::days(365)).unwrap())
     .subject(subject)
     .build().unwrap();
 
@@ -87,19 +89,17 @@ issuer_state.issuer_account.client().clone().to_owned()
     insert_holder_request(
         &pool.get().await.unwrap(), 
         vc.clone().to_json().unwrap(), 
-        vc_digest.to_json().unwrap().to_string(), 
+        "0x".to_owned() + &hex::encode(vc_digest), 
         holder_did.clone(),
         expiration
     ).await
 }
 
-pub async fn register_new_vc(issuer_state: &IssuerState, vc: String, vc_hash: String, pseudo_sign: String, holder_did: String) {
+pub async fn register_new_vc(pool: &Pool, issuer_state: &IssuerState, vc: String, vc_hash: String, pseudo_sign: String, holder_did: String) -> anyhow::Result<()>{
     let vc_json: Value = serde_json::from_str(vc.as_str()).unwrap();
     let credential: Credential = Credential::from_json_value(vc_json).unwrap();
 
     let vc_id = get_vc_id_from_credential(credential.clone());
-    let exp_unix = get_unix_from_timestamp(credential.expiration_date.clone().unwrap());
-    let issuance_unix = get_unix_from_timestamp(credential.issuance_date.clone());
 
     // issuer_state.idsc_instance.event_with_filter(Filter::new().event(event_name))
     register_new_vc_idsc(
@@ -108,8 +108,11 @@ pub async fn register_new_vc(issuer_state: &IssuerState, vc: String, vc_hash: St
         vc_id, 
         pseudo_sign, 
         holder_did,
-        exp_unix, 
-        issuance_unix, 
-        vc_hash
-    ).await;
+        credential.expiration_date.unwrap().to_unix(), 
+        credential.issuance_date.to_unix(), 
+        vc_hash.clone()
+    ).await?;
+    
+    remove_holder_request_by_vchash(&pool.get().await.unwrap(), vc_hash).await;
+    Ok(())
 }
