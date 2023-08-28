@@ -30,6 +30,8 @@ pub async fn register_new_vc_idsc(
 ) -> anyhow::Result<()> {
     let bytes = Bytes::from(Vec::from_hex(remove_0x_prefix(pseudo_sign.clone())).unwrap());
 
+    // 2 ways of doing the same thing 
+    
     // let address: Address = "0xa3740B38131A0738DA7A6097261f5Bc5500cb24d".parse().unwrap();
     // let contract = IDSC::new(address, eth_client.clone());
     

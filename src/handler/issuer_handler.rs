@@ -94,6 +94,9 @@ async fn req_vc_proofs(
     resp
 }
 
+
+// TODO: revoke API (must be admin api to let only issuer revoke a VC)
+
 #[get("/{sentence}")]
 async fn echo_api(path: web::Path<String>) -> impl Responder {
     HttpResponse::Ok().body(path.into_inner())

@@ -132,7 +132,9 @@ pub async fn download_contract_abi_file() -> Result<(), ()> {
 }
 
 pub fn is_abi_downloaded() -> bool {
-  if Path::new("../abi/idsc_abi.json").exists() == true && Path::new("../abi/idsc_abi.json").metadata().unwrap().len() > 0 {
+  let env_path = env::var("ABI_LOCAL_PATH").unwrap();
+  let path = Path::new(&env_path);
+  if path.exists() == true && path.metadata().unwrap().len() > 0 {
       return true
   };  
   return false;
@@ -142,7 +144,9 @@ pub fn get_abi_from_file() -> String {
   let abi = if is_abi_downloaded() == false {
     "".to_string()
   } else {
-    let mut file = File::open(Path::new("C:\\Users\\DavideScovotto\\mediterraneus-issuer-rs\\abi\\idsc_abi.json")).unwrap();
+    let env_path = env::var("ABI_LOCAL_PATH").unwrap();
+    let path = Path::new(&env_path);
+    let mut file = File::open(path).unwrap();
     let mut data = String::new();
     file.read_to_string(&mut data).unwrap();
     data
