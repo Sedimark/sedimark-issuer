@@ -27,7 +27,12 @@ derive_more = "0.99.7"
 tokio = { version = "1.20.1", default-features = false, features = ["rt"] }
 ethers = { version = "2.0.8", features = ["legacy"] }
 reqwest = { version = "0.11.18", features = ["json"] }
+clap = { version = "4.4.2", features = ["derive"] }
 
 [lib]
 name = "mediterraneus_issuer"
 path = "src/lib.rs"
+
+[[bin]]
+name = "issuer"
+path= "src/main.rs"

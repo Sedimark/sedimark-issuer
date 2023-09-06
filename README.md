@@ -18,8 +18,14 @@ Before issuing a VC the Issuer must perform the following operations:
 ```sh
 cd mediterraneus-issuer-rs/src
 
-cargo run main
+# For local node Provider
+cargo run -- -l
+
+# For Shimmer Provider
+cargo run 
 ```
+
+Consider that if the local node setup is used the IDentity ABI must be manually copied in the "abi" folder. Also the file must be named "idsc_abi.json".
 
 ## Useful links
 https://github.com/actix/examples/blob/master/databases/postgres/src/main.rs

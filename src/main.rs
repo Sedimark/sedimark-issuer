@@ -13,8 +13,24 @@ use ethers::providers::{Provider, Http};
 use ethers::middleware::SignerMiddleware;
 use ethers::signers::{LocalWallet, Signer};
 
+use clap::{Parser, ArgAction};
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Whether the provider must be configured with a local Hardhat node or not.
+    /// By default, the Shimmer Provider will be configured.
+    #[arg(short, long, action=ArgAction::SetTrue)]
+    local_node: bool,
+}
+
+
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    log::info!("{}", args.local_node);
+
     dotenv::dotenv().ok();
     env_logger::init();
 
@@ -37,9 +53,17 @@ async fn main() -> anyhow::Result<()> {
     let issuer_identity = issuer_identity::create_identity(
         &client.clone(), wallet_address.as_ref().clone(), &mut *secret_manager.write().await, pool.clone())
         .await?;
-
-    let provider = Provider::<Http>::try_from(env::var("SHIMMER_JSON_RPC_URL")
-    .expect("$SHIMMER_JSON_RPC_URL must be set"))?;
+    
+    let provider: Provider<Http> = if args.local_node == false {
+        log::info!("Initializing Shimmer provider");
+        Provider::<Http>::try_from(env::var("SHIMMER_JSON_RPC_URL")
+            .expect("$SHIMMER_JSON_RPC_URL must be set"))?
+    } else {
+        log::info!("Initializing local provider");
+        Provider::<Http>::try_from(env::var("LOCAL_JSON_RPC_URL")
+            .expect("$LOCAL_JSON_RPC_URL must be set"))?
+    };
+    
     // Transactions will be signed with the private key below
     let eth_wallet: LocalWallet = env::var("PRIVATE_KEY")
         .expect("$PRIVATE_KEY must be set")
