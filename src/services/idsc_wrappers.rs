@@ -61,7 +61,7 @@ pub async fn register_new_vc_idsc(
         .expect("method not found (this should never happen)");
     let pending_tx = call.send().await?;
     // `await`ing on the pending transaction resolves to a transaction receipt
-    let receipt = pending_tx.confirmations(3).await?;
+    let receipt = pending_tx.confirmations(1).await?;
     log::info!("{:?}", receipt.unwrap());
     Ok(())
 }

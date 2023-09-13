@@ -65,10 +65,17 @@ async fn main() -> anyhow::Result<()> {
     };
     
     // Transactions will be signed with the private key below
-    let eth_wallet: LocalWallet = env::var("PRIVATE_KEY")
-        .expect("$PRIVATE_KEY must be set")
-        .parse::<LocalWallet>()?
-        .with_chain_id(1072u64);
+    let eth_wallet: LocalWallet = if args.local_node == false {
+        env::var("PRIVATE_KEY")
+            .expect("$PRIVATE_KEY must be set")
+            .parse::<LocalWallet>()?
+            .with_chain_id(1072u64)
+    } else {
+        env::var("PRIVATE_KEY")
+            .expect("$PRIVATE_KEY must be set")
+            .parse::<LocalWallet>()?
+            .with_chain_id(31337u64)
+    };
     let eth_client: Arc<EthClient> = Arc::new(SignerMiddleware::new(provider, eth_wallet.clone()));
 
     let idsc_instance: LocalContractInstance = setup_eth_wallet(eth_client.clone()).await;
