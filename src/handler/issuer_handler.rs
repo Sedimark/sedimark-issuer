@@ -63,21 +63,28 @@ async fn req_vc_proofs(
                 holder_request.vchash.as_bytes()
             ) {
                 true => {
-                    register_new_vc(
+                    match register_new_vc(
                         &pool,
                         issuer_state.get_ref().to_owned(), 
                         holder_request.vc.clone(), 
                         holder_request.vchash, 
                         req_body.pseudo_sign.clone(), 
                         holder_request.did
-                    ).await.unwrap();
-
-                    HttpResponse::Ok().body(serde_json::to_string::<VcIssuingResponse>(
-                        &VcIssuingResponse { 
-                            message: "VC issued. In order to activate it contact the IDentity SC.".to_string(), 
-                            vc: holder_request.vc
+                    ).await {
+                        Ok(_) => 
+                            HttpResponse::Ok()
+                            .body(serde_json::to_string::<VcIssuingResponse>(
+                            &VcIssuingResponse { 
+                                message: "VC issued. In order to activate it contact the IDentity SC.".to_string(), 
+                                vc: holder_request.vc
+                            })
+                            .unwrap())
+                        ,
+                        Err(err) => {
+                            log::info!("{:?}", err.to_string());
+                            HttpResponse::BadRequest().body(err.to_string())
                         }
-                    ).unwrap())
+                    }
                 },
                 false => {
                     HttpResponse::BadRequest()

@@ -50,6 +50,7 @@ async fn create_vc(holder_did: String, vc_id: U256, issuer_identity: Identity, c
     .issuer(Url::parse(issuer_identity.did.clone()).unwrap())
     .type_("MarketplaceCredential")
     .expiration_date(Timestamp::now_utc().checked_add(Duration::days(365)).unwrap())
+    .issuance_date(Timestamp::now_utc().checked_sub(Duration::days(1)).unwrap())
     .subject(subject)
     .build().unwrap();
 

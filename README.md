@@ -25,7 +25,7 @@ cargo run -- -l
 cargo run 
 
 # For custom Provider
-cargo run -- --custom-node https://sepolia.infura.io/v3/ --chain-id 11155111
+cargo run -- --custom-node https://sepolia.infura.io/v3/<API_KEY> --chain-id 11155111
 ```
 
 Consider that if the local node setup is used the IDentity ABI must be manually copied in the "abi" folder. Also the file must be named "idsc_abi.json".
