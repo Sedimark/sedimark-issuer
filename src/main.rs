@@ -20,9 +20,17 @@ use clap::{Parser, ArgAction};
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Whether the provider must be configured with a local Hardhat node or not.
-    /// By default, the Shimmer Provider will be configured.
+    /// By default, the Shimmer Provider will be configured, if no custom url and chain id are provided.
     #[arg(short, long, action=ArgAction::SetTrue)]
     local_node: bool,
+
+    /// Custom json rpc url
+    #[arg(long, required=false, requires="chain_id" )]
+    custom_node: Option<String>,
+
+    /// Custom chain id
+    #[arg(long, required=false, requires="custom_node")]
+    chain_id: Option<u64>,
 }
 
 
@@ -54,28 +62,25 @@ async fn main() -> anyhow::Result<()> {
         &client.clone(), wallet_address.as_ref().clone(), &mut *secret_manager.write().await, pool.clone())
         .await?;
     
-    let provider: Provider<Http> = if args.local_node == false {
+    let (provider, chain_id) = if args.custom_node.is_some() && args.chain_id.is_some() {
+        log::info!("Initializing custom provider");
+        (Provider::<Http>::try_from( args.custom_node.unwrap())? , args.chain_id.unwrap())
+    } else if args.local_node == false {
         log::info!("Initializing Shimmer provider");
-        Provider::<Http>::try_from(env::var("SHIMMER_JSON_RPC_URL")
-            .expect("$SHIMMER_JSON_RPC_URL must be set"))?
+        (Provider::<Http>::try_from(env::var("SHIMMER_JSON_RPC_URL")
+            .expect("$SHIMMER_JSON_RPC_URL must be set"))?, 1072u64)
     } else {
         log::info!("Initializing local provider");
-        Provider::<Http>::try_from(env::var("LOCAL_JSON_RPC_URL")
-            .expect("$LOCAL_JSON_RPC_URL must be set"))?
+        (Provider::<Http>::try_from(env::var("LOCAL_JSON_RPC_URL")
+            .expect("$LOCAL_JSON_RPC_URL must be set"))?, 31337u64)
     };
     
     // Transactions will be signed with the private key below
-    let eth_wallet: LocalWallet = if args.local_node == false {
-        env::var("PRIVATE_KEY")
-            .expect("$PRIVATE_KEY must be set")
-            .parse::<LocalWallet>()?
-            .with_chain_id(1072u64)
-    } else {
-        env::var("PRIVATE_KEY")
-            .expect("$PRIVATE_KEY must be set")
-            .parse::<LocalWallet>()?
-            .with_chain_id(31337u64)
-    };
+    let eth_wallet: LocalWallet = env::var("PRIVATE_KEY")
+        .expect("$PRIVATE_KEY must be set")
+        .parse::<LocalWallet>()?
+        .with_chain_id(chain_id);
+
     let eth_client: Arc<EthClient> = Arc::new(SignerMiddleware::new(provider, eth_wallet.clone()));
 
     let idsc_instance: LocalContractInstance = setup_eth_wallet(eth_client.clone()).await;
