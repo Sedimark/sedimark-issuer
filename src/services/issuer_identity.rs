@@ -12,7 +12,7 @@ use crate::{db::models::Identity, errors::my_errors::MyError};
 
 pub async fn create_identity(client: &Client, wallet_address: Address, secret_manager: &mut SecretManager, pool: Pool) -> Result<Identity, MyError> {
     // check if DID is already available
-    let issuer_identity = operations::get_identity_did(&pool.get().await.unwrap()).await?;
+    let issuer_identity = operations::get_identity_did(&pool.get().await.expect("can't connect to db")).await?;
     if issuer_identity.did.len() > 0 && issuer_identity.privkey.len() > 0 {
         return Ok(issuer_identity);
     }

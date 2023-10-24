@@ -9,16 +9,15 @@ pub struct Identity {
 }
 
 #[derive(Deserialize, PostgresMapper, Serialize, Clone, Debug)]
-#[pg_mapper(table = "holder_request")] 
-pub struct HolderRequest {
-    pub vchash: String,
+#[pg_mapper(table = "holders_requests")] 
+pub struct HoldersRequests {
     pub did: String,
     pub request_expiration: String,
-    pub vc: String
+    pub nonce: String
 }
 
-pub fn is_empty_request(request: HolderRequest) -> bool {
-    if request.did.len() > 0 && request.request_expiration.len() > 0 && request.vc.len() > 0 && request.vchash.len() > 0 {
+pub fn is_empty_request(request: HoldersRequests) -> bool {
+    if request.did.len() > 0 && request.request_expiration.len() > 0 && request.nonce.len() > 0 {
         return false;
     }
     return true;

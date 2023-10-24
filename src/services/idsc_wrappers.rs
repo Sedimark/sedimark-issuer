@@ -26,9 +26,13 @@ pub async fn get_free_vc_id(
 pub async fn register_new_vc_idsc(
     idsc_instance: LocalContractInstance,
     eth_client: Arc<EthClient>,
-    vc_id: i64, pseudo_sign: String, holder_did: String, exp_unix: i64, issuance_unix: i64, vc_hash: String
+    vc_id: i64, pseudo_sign: String, holder_did: &String, exp_unix: i64, issuance_unix: i64, challenge: String
 ) -> anyhow::Result<()> {
-    let bytes = Bytes::from(Vec::from_hex(remove_0x_prefix(pseudo_sign.clone())).unwrap());
+    let pseudo_sign_bytes = Bytes::from(Vec::from_hex(remove_0x_prefix(pseudo_sign.clone())).unwrap());
+    let challenge_bytes = Bytes::from(challenge.clone().into_bytes());
+    log::info!("{:?}", challenge.into_bytes() );
+    log::info!("{:?}", challenge_bytes );
+
 
     // 2 ways of doing the same thing 
     
@@ -48,15 +52,16 @@ pub async fn register_new_vc_idsc(
     
     let call = idsc_instance
         .connect(eth_client.clone())
-        .method::<(U256, Bytes, std::string::String, U256, U256, [u8; 32]), ()>(
+        .method::<(U256, Bytes, std::string::String, U256, U256, Bytes), ()>(
         "validate_and_store_VC",
         (
             U256::from(vc_id), 
-            bytes, 
-            holder_did,  
+            pseudo_sign_bytes, 
+            holder_did.clone(),  
             U256::from_dec_str(exp_unix.to_string().as_str()).unwrap(),
             U256::from_dec_str(issuance_unix.to_string().as_str()).unwrap(), 
-            <[u8; 32]>::try_from(Vec::from_hex(remove_0x_prefix(vc_hash.clone())).unwrap()).unwrap()
+            challenge_bytes
+            // <[u8; 16]>::try_from(Vec::from_hex(challenge.clone()).unwrap()).unwrap()
         ))
         .expect("method not found (this should never happen)");
     let pending_tx = call.send().await?;

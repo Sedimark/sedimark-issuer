@@ -4,7 +4,7 @@ use mediterraneus_issuer::{IssuerState, EthClient, LocalContractInstance};
 use mediterraneus_issuer::services::issuer_wallet::setup_eth_wallet;
 use mediterraneus_issuer::services::{issuer_wallet, issuer_identity};
 use mediterraneus_issuer::config::config;
-use mediterraneus_issuer::handler::issuer_handler;
+use mediterraneus_issuer::handlers::{credentials_handler, challenges_handler};
 use mediterraneus_issuer::utils::{setup_client, ensure_address_has_funds};
 use tokio_postgres::NoTls;
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
@@ -88,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
     log::info!("Starting up on {}:{}", address, port);
     HttpServer::new(move || {
         let cors = Cors::default()
-        .allow_any_origin() 
+        .allow_any_origin() // TODO: define who is allowed
         .allowed_methods(vec!["GET", "POST"])
         .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
         .allowed_header(http::header::CONTENT_TYPE)
@@ -106,7 +106,9 @@ async fn main() -> anyhow::Result<()> {
                 })
             )
             .service(web::scope("/api")
-                .configure(issuer_handler::scoped_config)
+                .configure(credentials_handler::scoped_config)
+                .configure(challenges_handler::scoped_config)
+
             )
             .wrap(cors)
             .wrap(Logger::default())
