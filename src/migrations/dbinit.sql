@@ -3,9 +3,8 @@ CREATE TABLE identity(
     privkey bytea NOT NULL
 );
 
-CREATE TABLE holder_request(
-    vchash text PRIMARY KEY,
-    did text NOT NULL,
+CREATE TABLE holders_requests(
+    did text PRIMARY KEY NOT NULL,
     request_expiration text NOT NULL,
-    vc text NOT NULL
+    nonce text NOT NULL
 );

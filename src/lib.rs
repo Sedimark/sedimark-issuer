@@ -1,5 +1,5 @@
 pub mod config;
-pub mod handler;
+pub mod handlers;
 pub mod dtos;
 pub mod services;
 pub mod utils;
