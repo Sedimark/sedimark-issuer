@@ -8,7 +8,7 @@ use crate::{db::models::Identity, errors::my_errors::MyError};
 use super::models::HoldersRequests;
 
 pub async fn get_identity_did(client: &PostgresClient) -> Result<Identity, MyError> {
-    let stmt = include_str!("./sql/get_identity_did.sql");
+    let stmt = include_str!("./sql/get_identity_did.sql"); //TODO: folder as env variable
     let stmt = stmt.replace("$table_fields", &Identity::sql_table_fields());
     let stmt = client.prepare(&stmt).await.unwrap();
 
