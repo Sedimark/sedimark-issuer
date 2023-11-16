@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use ethers::{core::types::{Bytes, U256}, prelude::abigen, utils::hex::FromHex};
-use crate::{EthClient, LocalContractInstance, utils::remove_0x_prefix};
+use crate::{EthClient, LocalContractInstance, utils::iota_utils::remove_0x_prefix};
 
 // Generate the type-safe contract bindings by providing the ABI
 // definition

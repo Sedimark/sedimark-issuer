@@ -16,8 +16,6 @@ Before issuing a VC the Issuer must perform the following operations:
 
 ## Running the Application
 ```sh
-cd mediterraneus-issuer-rs/src
-
 # For local node Provider
 cargo run -- -l
 

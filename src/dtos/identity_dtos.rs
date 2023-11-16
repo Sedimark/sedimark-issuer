@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 pub struct CredentialRequestDTO {
     pub did: String,
     pub nonce: String,
-    pub ssi_signature: String,
-    pub pseudo_sign: String
+    pub identity_signature: String,
+    pub wallet_signature: String
 }
 
 #[derive(Deserialize, Serialize)]
@@ -18,5 +18,14 @@ pub struct AbiDTO {
 #[derive(Deserialize, Serialize)]
 pub struct VcIssuingResponse {
     pub message: String,
-    pub vc: String,
+    pub vc: String
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+pub struct PurchaseCredentialRequestDTO {
+    pub did: String,
+    pub nft_address: String,
+    pub challenge: String,
+    pub wallet_signature: String,
+    pub identity_signature: String
 }

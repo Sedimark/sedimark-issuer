@@ -1,6 +1,6 @@
 CREATE TABLE identity(
     did text PRIMARY KEY,
-    privkey bytea NOT NULL
+    fragment text NOT NULL
 );
 
 CREATE TABLE holders_requests(

@@ -1,11 +1,13 @@
 use std::env;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use iota_sdk::client::Client;
+use mediterraneus_issuer::services::issuer_identity::create_or_recover_identity;
+use mediterraneus_issuer::utils::iota_utils::{ensure_address_has_funds, create_or_recover_key_storage};
 use mediterraneus_issuer::{IssuerState, EthClient, LocalContractInstance};
 use mediterraneus_issuer::services::issuer_wallet::setup_eth_wallet;
 use mediterraneus_issuer::services::{issuer_wallet, issuer_identity};
 use mediterraneus_issuer::config::config;
-use mediterraneus_issuer::handlers::{credentials_handler, challenges_handler};
-use mediterraneus_issuer::utils::{setup_client, ensure_address_has_funds};
+use mediterraneus_issuer::handlers::{credentials_handler, challenges_handler, purchase_credentials_handler};
 use tokio_postgres::NoTls;
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
 use actix_cors::Cors;
@@ -48,20 +50,10 @@ async fn main() -> anyhow::Result<()> {
     let address = env::var("ADDR").expect("$ADDR must be set.");
     let port = env::var("PORT").expect("$PORT must be set.").parse::<u16>().unwrap();
 
-    // first create or load issuer's identity.
-    let client = setup_client();
-    let faucet_endpoint = env::var("FAUCET_URL").expect("$FAUCET_URL must be set");
-
-    let (account_manager, account) = issuer_wallet::create_or_load_wallet_account().await?;
-    let wallet_address = account.addresses().await?[0].address().clone();
-
-    ensure_address_has_funds(&client.clone(), wallet_address.as_ref().clone(), &faucet_endpoint.clone()).await?;
-    
-    let secret_manager = account_manager.get_secret_manager();
-    let issuer_identity = issuer_identity::create_identity(
-        &client.clone(), wallet_address.as_ref().clone(), &mut *secret_manager.write().await, pool.clone())
-        .await?;
-    
+    // Create or load issuer's identity.
+    let (key_storage, secret_manager) = create_or_recover_key_storage().await?;
+    let (issuer_identity, issuer_document ) = create_or_recover_identity(&key_storage,  &secret_manager, &pool).await?;
+        
     let (provider, chain_id) = if args.custom_node.is_some() && args.chain_id.is_some() {
         log::info!("Initializing custom provider");
         (Provider::<Http>::try_from( args.custom_node.unwrap())? , args.chain_id.unwrap())
@@ -76,14 +68,17 @@ async fn main() -> anyhow::Result<()> {
     };
     
     // Transactions will be signed with the private key below
-    let eth_wallet: LocalWallet = env::var("PRIVATE_KEY")
+    let eth_wallet = env::var("PRIVATE_KEY")
         .expect("$PRIVATE_KEY must be set")
         .parse::<LocalWallet>()?
         .with_chain_id(chain_id);
 
-    let eth_client: Arc<EthClient> = Arc::new(SignerMiddleware::new(provider, eth_wallet.clone()));
+    let eth_client = Arc::new(SignerMiddleware::new(provider, eth_wallet.clone()));
 
-    let idsc_instance: LocalContractInstance = setup_eth_wallet(eth_client.clone()).await;
+    let idsc_instance = setup_eth_wallet(eth_client.clone()).await;
+
+    let key_storage_arc = Arc::new(RwLock::new(key_storage));
+    let secret_manager_arc =  Arc::new(RwLock::new( secret_manager.clone() ));
 
     log::info!("Starting up on {}:{}", address, port);
     HttpServer::new(move || {
@@ -98,9 +93,10 @@ async fn main() -> anyhow::Result<()> {
             .app_data(web::Data::new(pool.clone()))
             .app_data(web::Data::new(
                 IssuerState {
-                    issuer_account: account.clone(),
-                    secret_manager: secret_manager.clone(),
+                    secret_manager: secret_manager_arc.clone(),
+                    key_storage: key_storage_arc.clone(),
                     issuer_identity: issuer_identity.clone(),
+                    issuer_document: issuer_document.clone(),
                     eth_client: eth_client.clone(),
                     idsc_instance: idsc_instance.clone()
                 })
@@ -108,6 +104,7 @@ async fn main() -> anyhow::Result<()> {
             .service(web::scope("/api")
                 .configure(credentials_handler::scoped_config)
                 .configure(challenges_handler::scoped_config)
+                .configure(purchase_credentials_handler::scoped_config)
 
             )
             .wrap(cors)

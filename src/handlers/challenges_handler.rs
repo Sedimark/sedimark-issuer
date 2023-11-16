@@ -8,7 +8,7 @@ use deadpool_postgres::Pool;
 use serde::Deserialize;
 
 use crate::dtos::challenges_dtos::ChallengeResponse;
-use crate::errors::errors::ChallengeError;
+use crate::errors::IssuerError;
 use crate::services::challenges_service::get_challenge_service;
 
 #[derive(Deserialize)]
@@ -27,9 +27,10 @@ async fn get_challenge(params: web::Query<Params>, pool: web::Data<Pool>,) -> im
         Ok(challenge) => {
             HttpResponse::Ok().json(ChallengeResponse {nonce: challenge})
         },
-        //TODO: handle this error
-        // Err(ChallengeError::ChallengePendingError) => HttpResponse::TooManyRequests().finish(),
-        Err(_) => HttpResponse::InternalServerError().finish()
+        Err(err) => match err { 
+            IssuerError::ChallengePendingError=> HttpResponse::TooManyRequests().finish(),
+            _ => HttpResponse::InternalServerError().finish(),
+        }
     };
     resp
 }

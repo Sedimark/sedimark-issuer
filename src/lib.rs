@@ -6,27 +6,29 @@ pub mod utils;
 pub mod errors;
 pub mod db;
 
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
-use ethers::prelude::k256::ecdsa::SigningKey;
-use iota_wallet::secret::SecretManager;
-use iota_wallet::account::AccountHandle;
 use db::models::Identity;
-use tokio::sync::RwLock;
 
 use ethers::providers::{Provider, Http};
-use ethers::prelude::{SignerMiddleware, k256, ContractInstance};
+use ethers::prelude::k256::ecdsa::SigningKey;
+use ethers::prelude::{SignerMiddleware, ContractInstance};
 use ethers::prelude::Wallet;
 
-pub type EthClient = SignerMiddleware<Provider<Http>, Wallet<k256::ecdsa::SigningKey>>;
-pub type LocalContractInstance = ContractInstance<Arc<SignerMiddleware<ethers::providers::Provider<Http>, Wallet<SigningKey>>>, 
-SignerMiddleware<ethers::providers::Provider<Http>, Wallet<SigningKey>>>;
+use identity_iota::iota::IotaDocument;
+use identity_stronghold::StrongholdStorage;
+use utils::iota_utils::MemStorage;
 
-// This struct represents state
+
+pub type EthClient = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
+pub type LocalContractInstance = ContractInstance<Arc<SignerMiddleware<ethers::providers::Provider<Http>, Wallet<SigningKey>>>, SignerMiddleware<ethers::providers::Provider<Http>, Wallet<SigningKey>>>;
+
+// This struct represents the Issuer state
 pub struct IssuerState {
-    pub issuer_account: AccountHandle,
-    pub secret_manager: Arc<RwLock<SecretManager>>,
+    pub key_storage: Arc<RwLock<MemStorage>>,
+    pub secret_manager: Arc<RwLock<StrongholdStorage>>,
     pub issuer_identity: Identity,
+    pub issuer_document: IotaDocument,
     pub eth_client: Arc<EthClient>,
     pub idsc_instance: LocalContractInstance
 }
