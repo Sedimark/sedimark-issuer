@@ -12,7 +12,7 @@ pub async fn create_purchase_credential(
 ) -> Result<(), IssuerError>  {
 
     // read the request from the DB 
-    let holder_request = get_holder_request(client, &request_dto.did).await.unwrap();
+    let holder_request = get_holder_request(client, &request_dto.did).await?;
     // first check request is valid (anti replay, the hash serves as nonce)
     match is_empty_request(holder_request.clone()) {
         false => { // valid request

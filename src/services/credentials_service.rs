@@ -3,7 +3,7 @@ use std::env;
 use anyhow::Result;
 use deadpool_postgres::Pool;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
-use identity_iota::{credential::{Credential, Jws}, document::verifiable::JwsVerificationOptions, iota::{IotaIdentityClientExt, IotaDID}};
+use identity_iota::{credential::{Credential, Jws, self, Jwt}, document::verifiable::JwsVerificationOptions, iota::{IotaIdentityClientExt, IotaDID}};
 use iota_sdk::client::Client;
 
 use crate::{db::operations::get_holder_request, utils::iota_utils::setup_client}; 
@@ -22,7 +22,7 @@ pub async fn create_credential(
     pool: Pool,
     issuer_state: &IssuerState,
     request_dto: CredentialRequestDTO
-) -> Result<Credential, IssuerError>  {
+) -> Result<Jwt, IssuerError>  {
     
     // read the request from the DB 
     let holder_request = get_holder_request(&pool.get().await?, &request_dto.did).await?;
@@ -40,18 +40,22 @@ pub async fn create_credential(
                 &JwsVerificationOptions::default().nonce(&holder_request.nonce),
             ) {
                 Ok(_decoded_jws) => { // TODO: use informations from the jws
-                    let vc = create_vc(&holder_document, &issuer_state.issuer_document, &issuer_state).await?;
+                    let (credential_jwt, decoded_jwt_credential, credential_id) = create_vc(
+                        &holder_document, 
+                        &issuer_state.issuer_document,
+                        &issuer_state
+                    ).await?;
 
-                    // register_new_vc(
-                    //     &pool,
-                    //     issuer_state, 
-                    //     vc.to_string(), 
-                    //     // "0x".to_owned() + &hex::encode(hash_vc(vc.clone())), 
-                    //     &holder_request.nonce,
-                    //     request_dto.wallet_signature.clone(), 
-                    //     &holder_request.did
-                    // ).await.unwrap();
-                    Ok(vc)
+                    register_new_vc(
+                        &pool,
+                        issuer_state, 
+                        decoded_jwt_credential,
+                        credential_id, 
+                        holder_request.nonce,
+                        &request_dto.wallet_signature, 
+                        &holder_document.id().to_string()
+                    ).await.unwrap();
+                    Ok(credential_jwt)
                 },
                 Err(_) => Err(IssuerError::InvalidIdentitySignatureError),
             }

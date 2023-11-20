@@ -39,16 +39,21 @@ pub async fn insert_identity_issuer(postgres_client: &PostgresClient, identity: 
     .ok_or(IssuerError::RowNotFound) // more applicable for SELECTs
 }
 
-pub async fn get_holder_request(postgres_client: &PostgresClient, did: &String) -> Result<HoldersRequests, IssuerError> {
+pub async fn get_holder_request(
+    postgres_client: &PostgresClient, 
+    did: &String
+) -> Result<HoldersRequests, IssuerError> {
+
     let _stmt = include_str!("./sql/get_holder_request.sql");
     let _stmt = _stmt.replace("$table_fields", &HoldersRequests::sql_table_fields());
     let stmt = postgres_client.prepare(&_stmt).await?;
 
-    let row = postgres_client
+    match postgres_client
     .query_one(&stmt, &[did])
-    .await?;
-
-    HoldersRequests::from_row_ref(&row).map_err(|e| IssuerError::from(e))
+    .await{
+        Ok(row) => HoldersRequests::from_row_ref(&row).map_err(|e| IssuerError::from(e)),
+        Err(_) =>  Err(IssuerError::RowNotFound),
+    }
    
 }
 

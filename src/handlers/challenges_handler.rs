@@ -22,17 +22,12 @@ struct Params {
 /// It is expected that the holder calls the API for creating a credential within a minute.
 /// @param res --> 200, 400, 500
 #[get("")]
-async fn get_challenge(params: web::Query<Params>, pool: web::Data<Pool>,) -> impl Responder {
-    let resp = match get_challenge_service(pool.get_ref().to_owned(), &params.did).await {
-        Ok(challenge) => {
-            HttpResponse::Ok().json(ChallengeResponse {nonce: challenge})
-        },
-        Err(err) => match err { 
-            IssuerError::ChallengePendingError=> HttpResponse::TooManyRequests().finish(),
-            _ => HttpResponse::InternalServerError().finish(),
-        }
-    };
-    resp
+async fn get_challenge(
+    params: web::Query<Params>, 
+    pool: web::Data<Pool>,
+) -> Result<impl Responder, IssuerError> {
+    let challenge = get_challenge_service(pool.get_ref().to_owned(), &params.did).await?;
+    Ok(HttpResponse::Ok().json(ChallengeResponse {nonce: challenge}))
 }
 
 // this function could be located in a different module

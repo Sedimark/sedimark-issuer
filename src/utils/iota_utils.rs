@@ -229,6 +229,6 @@ pub fn get_vc_id_from_credential(vc: Credential) -> i64 {
   num
 }
 
-pub fn remove_0x_prefix(hex_string: String) -> String {
+pub fn remove_0x_prefix(hex_string: &String) -> String {
   hex_string.strip_prefix("0x").unwrap().to_string()
 }

@@ -28,7 +28,7 @@ pub async fn setup_eth_wallet(eth_client: Arc<EthClient>) -> LocalContractInstan
         if from_file_abi.len() == 0 {
             panic!("ABI file does not exist or is empty");
         }        
-        serde_json::from_str(from_file_abi.as_str().clone()).expect("Invalid ABI")
+        serde_json::from_str(from_file_abi.as_str()).expect("Invalid ABI")
     });
 
     let contract_address: Address = env::var("IDENTITY_SC_ADDRESS").unwrap().as_str().parse().unwrap();
