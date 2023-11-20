@@ -12,11 +12,13 @@ pub async fn get_identity_did(postgres_client: &PostgresClient) -> Result<Identi
     let stmt = stmt.replace("$table_fields", &Identity::sql_table_fields());
     let stmt = postgres_client.prepare(&stmt).await?;
 
-    let row = postgres_client
+    match postgres_client
     .query_one(&stmt, &[])
-    .await?;
+    .await{
+        Ok(row) => Identity::from_row_ref(&row).map_err(|e| IssuerError::from(e)),
+        Err(_) =>  Err(IssuerError::RowNotFound),
+    }
 
-    Identity::from_row_ref(&row).map_err(|e| IssuerError::from(e))
 }
 
 pub async fn insert_identity_issuer(postgres_client: &PostgresClient, identity: &Identity) -> Result<Identity, IssuerError> {
