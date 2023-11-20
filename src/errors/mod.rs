@@ -1,5 +1,6 @@
 use deadpool_postgres::PoolError;
-use actix_web::{HttpResponse, ResponseError};
+use actix_web::{HttpResponse, ResponseError, http::header::ContentType};
+use reqwest::StatusCode;
 
 #[derive(thiserror::Error, Debug)]
 pub enum IssuerError {
@@ -38,24 +39,27 @@ pub enum IssuerError {
 }
 
 impl ResponseError for IssuerError {
+
     fn error_response(&self) -> HttpResponse {
+        HttpResponse::build(self.status_code())
+            .insert_header(ContentType::html())
+            .body(self.to_string())
+    }
+
+    fn status_code(&self) -> StatusCode {
         match *self {
-            IssuerError::RowNotFound => HttpResponse::NotFound().finish(),
-            IssuerError::PoolError(ref err) => {
-                HttpResponse::InternalServerError().body(err.to_string())
-            }
-            _ => HttpResponse::InternalServerError().finish(),
+            IssuerError::ChallengePendingError => StatusCode::TOO_MANY_REQUESTS,
+            IssuerError::InvalidOrPendingRequestError => StatusCode::BAD_REQUEST,
+            IssuerError::NonExistingRequestError => StatusCode::NOT_FOUND,
+            IssuerError::InvalidIdentitySignatureError => StatusCode::BAD_REQUEST,
+            IssuerError::IdentityIotaError(_) => StatusCode::INTERNAL_SERVER_ERROR, //TODO: check error code
+            IssuerError::IotaClientError(_) => StatusCode::INTERNAL_SERVER_ERROR, //TODO: check error code
+            IssuerError::IotaDidError(_) => StatusCode::INTERNAL_SERVER_ERROR, //TODO: check error code
+            IssuerError::RowNotFound => StatusCode::NOT_FOUND,
+            IssuerError::TokioPostgresError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            IssuerError::TokioPostgresMapperError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            IssuerError::PoolError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            IssuerError::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
-    // fn error_response(&self) -> HttpResponse {
-    //     HttpResponse::build(self.status_code())
-    //         .insert_header(ContentType::html())
-    //         .body(self.to_string())
-    // }
-
-    // fn status_code(&self) -> StatusCode {
-    //     match *self {
-    //         UserError::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
-    //     }
-    // }
 }
