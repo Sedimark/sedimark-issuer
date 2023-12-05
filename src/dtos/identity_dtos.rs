@@ -1,4 +1,5 @@
 use identity_iota::credential::Jwt;
+use iota_sdk::U256;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -22,6 +23,8 @@ pub struct AbiDTO {
 #[serde(rename_all = "camelCase")]
 pub struct CredentialIssuedResponse {
     pub message: String,
+    pub issuer_did: String,
+    pub credential_id: U256,
     pub credential_jwt: Jwt
 }
 

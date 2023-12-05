@@ -1,10 +1,8 @@
-use std::env;
-
 use anyhow::Result;
 use deadpool_postgres::Pool;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
-use identity_iota::{credential::{Credential, Jws, self, Jwt}, document::verifiable::JwsVerificationOptions, iota::{IotaIdentityClientExt, IotaDID}};
-use iota_sdk::client::Client;
+use identity_iota::{credential::{Jws, Jwt}, document::verifiable::JwsVerificationOptions, iota::{IotaIdentityClientExt, IotaDID}};
+use iota_sdk::U256;
 
 use crate::{db::operations::get_holder_request, utils::iota_utils::setup_client}; 
 use crate::db::models::is_empty_request;
@@ -15,14 +13,13 @@ use crate::{
     dtos::identity_dtos::CredentialRequestDTO, 
     services::issuer_vc::{register_new_vc, create_vc}, 
     IssuerState, 
-    utils::iota_utils::extract_pub_key_from_doc
 };
 
 pub async fn create_credential(
     pool: Pool,
     issuer_state: &IssuerState,
     request_dto: CredentialRequestDTO
-) -> Result<Jwt, IssuerError>  {
+) -> Result<(U256,Jwt), IssuerError>  {
     
     // read the request from the DB 
     let holder_request = get_holder_request(&pool.get().await?, &request_dto.did).await?;
@@ -55,7 +52,7 @@ pub async fn create_credential(
                         &request_dto.wallet_signature, 
                         &holder_document.id().to_string()
                     ).await.unwrap();
-                    Ok(credential_jwt)
+                    Ok((credential_id,credential_jwt))
                 },
                 Err(_) => Err(IssuerError::InvalidIdentitySignatureError),
             }

@@ -1,6 +1,5 @@
 use anyhow::Result;
 use deadpool_postgres::Pool;
-use ethers::utils::hex;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Credential, Subject, CredentialBuilder, Jwt, JwtCredentialValidator, JwtCredentialValidationOptions, FailFast, DecodedJwtCredential}, core::{Url, Timestamp, FromJson, Duration, Object}, iota::IotaDocument, did::DID, storage::{JwkDocumentExt, JwsSignatureOptions}};
 use iota_sdk::U256;
@@ -77,7 +76,7 @@ pub async fn create_vc(
     issuer_state: &IssuerState
 ) -> Result<(Jwt, DecodedJwtCredential, U256),IssuerError> {
     // get credential id from Identity Smart Contract
-    let credential_id: U256 = get_free_vc_id(issuer_state.idsc_instance.clone(), issuer_state.eth_client.clone()).await;
+    let credential_id = get_free_vc_id(issuer_state.idsc_instance.clone(), issuer_state.eth_client.clone()).await;
     
     // issue the credential
     let (credential_jwt, decoded_jwt_credential) = issue_vc(
@@ -112,6 +111,6 @@ pub async fn register_new_vc(
         challenge
     ).await?;
     
-    remove_holder_request(&pool.get().await.unwrap(), holder_did).await;
+    remove_holder_request(&pool.get().await.unwrap(), holder_did).await?;
     Ok(())
 }

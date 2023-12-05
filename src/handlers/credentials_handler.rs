@@ -12,7 +12,7 @@ async fn create_credential (
     pool: web::Data<Pool>,
     issuer_state: web::Data<IssuerState>
 ) -> Result<impl Responder, IssuerError> {
-    let credential_jwt = create_credential_service(
+    let (credential_id, credential_jwt) = create_credential_service(
         pool.get_ref().to_owned(),
         issuer_state.get_ref(), 
         req_body.into_inner()
@@ -21,7 +21,9 @@ async fn create_credential (
     Ok(HttpResponse::Ok()
     .body(serde_json::to_string::<CredentialIssuedResponse>(
         &CredentialIssuedResponse { 
-            message: "VC issued. In order to activate it contact the IDentity SC.".to_string(), 
+            message: "VC issued. In order to activate it contact the IDentity SC.".to_string(),
+            issuer_did: issuer_state.get_ref().issuer_identity.did.clone(),
+            credential_id: credential_id,
             credential_jwt: credential_jwt
         })
     .unwrap()))
