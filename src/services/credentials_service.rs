@@ -40,7 +40,8 @@ pub async fn create_credential(
                     let (credential_jwt, decoded_jwt_credential, credential_id) = create_vc(
                         &holder_document, 
                         &issuer_state.issuer_document,
-                        &issuer_state
+                        &issuer_state,
+                        request_dto.credential_subject
                     ).await?;
 
                     register_new_vc(

@@ -8,7 +8,8 @@ pub struct CredentialRequestDTO {
     pub did: String,
     pub nonce: String,
     pub identity_signature: String,
-    pub wallet_signature: String
+    pub wallet_signature: String,
+    pub credential_subject: CredentialSubject
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -36,4 +37,11 @@ pub struct PurchaseCredentialRequestDTO {
     pub challenge: String,
     pub wallet_signature: String,
     pub identity_signature: String
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialSubject {
+    pub name: String,
+    pub surname: String
 }

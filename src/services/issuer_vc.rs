@@ -4,7 +4,7 @@ use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Credential, Subject, CredentialBuilder, Jwt, JwtCredentialValidator, JwtCredentialValidationOptions, FailFast, DecodedJwtCredential}, core::{Url, Timestamp, FromJson, Duration, Object}, iota::IotaDocument, did::DID, storage::{JwkDocumentExt, JwsSignatureOptions}};
 use iota_sdk::U256;
 use serde_json::json;
-use crate::{db::{operations::{remove_holder_request}, models::{is_empty_request, Identity}}, IssuerState, errors::IssuerError, utils::iota_utils::{get_vc_id_from_credential, MemStorage}};
+use crate::{db::{operations::{remove_holder_request}, models::{is_empty_request, Identity}}, IssuerState, errors::IssuerError, utils::iota_utils::{get_vc_id_from_credential, MemStorage}, dtos::identity_dtos::CredentialSubject};
 
 use crate::services::idsc_wrappers::{get_free_vc_id, register_new_vc_idsc};
 
@@ -14,16 +14,14 @@ async fn issue_vc(
     vc_id: U256,  
     storage_issuer: &mut MemStorage,
     fragment_issuer: &String,
+    credential_subject: CredentialSubject
 ) -> Result<(Jwt, DecodedJwtCredential)> {
     // Create a credential subject // TODO: fill this from user request
     let subject: Subject = Subject::from_json_value(json!({
         "id": holder_document.id().as_str(),
-        "name": "Alice",
-        "degree": {
-        "type": "BachelorDegree",
-        "name": "Bachelor of Science and Arts",
-        },
-        "GPA": "4.0",
+        "name": credential_subject.name,
+        "surname": credential_subject.surname,
+        "userOf": "SEDIMARK marketplace"
     }))?;
 
     // Build credential using subject above and issuer.
@@ -73,7 +71,8 @@ async fn issue_vc(
 pub async fn create_vc(
     holder_document: &IotaDocument, 
     issuer_document: &IotaDocument, 
-    issuer_state: &IssuerState
+    issuer_state: &IssuerState,
+    credential_subject: CredentialSubject
 ) -> Result<(Jwt, DecodedJwtCredential, U256),IssuerError> {
     // get credential id from Identity Smart Contract
     let credential_id = get_free_vc_id(issuer_state.idsc_instance.clone(), issuer_state.eth_client.clone()).await;
@@ -84,7 +83,8 @@ pub async fn create_vc(
         issuer_document, 
         credential_id, 
         &mut issuer_state.key_storage.write().unwrap(),
-        &issuer_state.issuer_identity.fragment
+        &issuer_state.issuer_identity.fragment,
+        credential_subject
     ).await.unwrap();
     Ok((credential_jwt, decoded_jwt_credential, credential_id))
 }
