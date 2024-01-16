@@ -22,9 +22,16 @@ pub enum IssuerError {
     IotaClientError(#[from] iota_sdk::client::Error),
     #[error("Iota DID Error")]
     IotaDidError(#[from] identity_iota::did::Error),
+    #[error("Verification method for ethereum address verification not found")]
+    EthMethodNotFound,
+    #[error("Verification method type is not EcdsaSecp256k1RecoveryMethod2020")]
+    InvalidVerificationMethodType,
     // Smart Contracts Errors
+    #[error("Public key recovery error")]
+    SignatureError(#[from] ethers::types::SignatureError),
+    #[error("Address recovery error")]
+    AddressRecoveryError,
     
-
     // Database Errors
     #[error("Row not found")]   
     RowNotFound,
@@ -60,6 +67,10 @@ impl ResponseError for IssuerError {
             IssuerError::TokioPostgresMapperError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             IssuerError::PoolError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             IssuerError::Unknown => StatusCode::INTERNAL_SERVER_ERROR,
+            IssuerError::EthMethodNotFound => StatusCode::BAD_REQUEST,
+            IssuerError::InvalidVerificationMethodType => StatusCode::BAD_REQUEST,
+            IssuerError::SignatureError(_) => StatusCode::BAD_REQUEST,
+            IssuerError::AddressRecoveryError => StatusCode::BAD_REQUEST,
         }
     }
 }

@@ -1,10 +1,9 @@
 use anyhow::Result;
-use deadpool_postgres::Pool;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Credential, Subject, CredentialBuilder, Jwt, JwtCredentialValidator, JwtCredentialValidationOptions, FailFast, DecodedJwtCredential}, core::{Url, Timestamp, FromJson, Duration, Object}, iota::IotaDocument, did::DID, storage::{JwkDocumentExt, JwsSignatureOptions}};
 use iota_sdk::U256;
 use serde_json::json;
-use crate::{db::{operations::{remove_holder_request}, models::{is_empty_request, Identity}}, IssuerState, errors::IssuerError, utils::iota_utils::{get_vc_id_from_credential, MemStorage}, dtos::identity_dtos::CredentialSubject};
+use crate::{IssuerState, errors::IssuerError, utils::iota_utils::MemStorage, dtos::identity_dtos::CredentialSubject};
 
 use crate::services::idsc_wrappers::{get_free_vc_id, register_new_vc_idsc};
 
@@ -90,7 +89,6 @@ pub async fn create_vc(
 }
 
 pub async fn register_new_vc(
-    pool: &Pool, 
     issuer_state: &IssuerState, 
     decoded_jwt_credential: DecodedJwtCredential, 
     credential_id: U256,
@@ -111,6 +109,5 @@ pub async fn register_new_vc(
         challenge
     ).await?;
     
-    remove_holder_request(&pool.get().await.unwrap(), holder_did).await?;
     Ok(())
 }

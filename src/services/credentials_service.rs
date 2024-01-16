@@ -1,10 +1,12 @@
 use anyhow::Result;
 use deadpool_postgres::Pool;
+use ethers::{types::{Signature, RecoveryMessage, Address}, utils::hex};
+use std::str::FromStr;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Jws, Jwt}, document::verifiable::JwsVerificationOptions, iota::{IotaIdentityClientExt, IotaDID}};
-use iota_sdk::U256;
+use iota_sdk::{U256, types::block::address};
 
-use crate::{db::operations::get_holder_request, utils::iota_utils::setup_client}; 
+use crate::{db::operations::{get_holder_request, remove_holder_request}, utils::iota_utils::setup_client}; 
 use crate::db::models::is_empty_request;
 use crate::errors::IssuerError;
 // use ethers::utils::hex::FromHex;
@@ -44,8 +46,26 @@ pub async fn create_credential(
                         request_dto.credential_subject
                     ).await?;
 
+                    log::info!("Wallet sign: {:?}", request_dto.wallet_signature);
+                    let wallet_sign = Signature::from_str(request_dto.wallet_signature.as_str())?;
+                    log::info!("signature {:?}", wallet_sign);
+                    let vm = holder_document.resolve_method("#ethAddress", None).ok_or(IssuerError::EthMethodNotFound)?;
+
+                    vm.type_().to_string().eq("EcdsaSecp256k1RecoverySignature2020").then(|| Some(())).ok_or(IssuerError::InvalidVerificationMethodType)?;
+                    let eth_addr = vm.properties()
+                    .get("blockchainAccountId")
+                    .ok_or(IssuerError::InvalidVerificationMethodType)?
+                    .as_str().ok_or(IssuerError::InvalidVerificationMethodType)?
+                    .strip_prefix("eip:1:")
+                    .ok_or(IssuerError::InvalidVerificationMethodType)?;
+
+                    log::info!("eth addr: {}", eth_addr);
+                    let address: Address = eth_addr.parse().map_err(|_| IssuerError::AddressRecoveryError)?;
+
+                    wallet_sign.verify(holder_request.nonce.clone(), address)?;
+                    log::info!("Wallet signature verification success!");
+                    
                     register_new_vc(
-                        &pool,
                         issuer_state, 
                         decoded_jwt_credential,
                         credential_id, 
@@ -53,6 +73,9 @@ pub async fn create_credential(
                         &request_dto.wallet_signature, 
                         &holder_document.id().to_string()
                     ).await.unwrap();
+
+                    remove_holder_request(&pool.get().await?, &holder_document.id().to_string()).await?;
+
                     Ok((credential_id,credential_jwt))
                 },
                 Err(_) => Err(IssuerError::InvalidIdentitySignatureError),
