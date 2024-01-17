@@ -21,7 +21,7 @@ struct Params {
 /// Expiration allows to maintain a light db.
 /// It is expected that the holder calls the API for creating a credential within a minute.
 /// @param res --> 200, 400, 500
-#[get("")]
+#[get("/challenges")]
 async fn get_challenge(
     params: web::Query<Params>, 
     pool: web::Data<Pool>,
@@ -32,9 +32,6 @@ async fn get_challenge(
 
 // this function could be located in a different module
 pub fn scoped_config(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-         // prefixes all resources and routes attached to it...
-        web::scope("/challenges")
-            .service(get_challenge)
-    );
+    cfg
+    .service(get_challenge);
 }
