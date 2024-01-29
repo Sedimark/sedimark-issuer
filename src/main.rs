@@ -7,7 +7,7 @@ use mediterraneus_issuer::{IssuerState, EthClient, LocalContractInstance};
 use mediterraneus_issuer::services::issuer_wallet::setup_eth_wallet;
 use mediterraneus_issuer::services::{issuer_wallet, issuer_identity};
 use mediterraneus_issuer::config::config;
-use mediterraneus_issuer::handlers::{credentials_handler, challenges_handler, purchase_credentials_handler};
+use mediterraneus_issuer::handlers::{credentials_handler, challenges_handler};
 use tokio_postgres::NoTls;
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
 use actix_cors::Cors;
@@ -104,8 +104,6 @@ async fn main() -> anyhow::Result<()> {
             .service(web::scope("/api")
                 .configure(credentials_handler::scoped_config)
                 .configure(challenges_handler::scoped_config)
-                .configure(purchase_credentials_handler::scoped_config)
-
             )
             .wrap(cors)
             .wrap(Logger::default())
