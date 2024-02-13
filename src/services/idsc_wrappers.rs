@@ -41,7 +41,7 @@ pub async fn register_new_vc_idsc(
     // let address: Address = "0xa3740B38131A0738DA7A6097261f5Bc5500cb24d".parse().unwrap();
     // let contract = IDSC::new(address, eth_client.clone());
     
-    // let tx = contract.validate_and_store_vc(
+    // let tx = contract.add_user(
     //     credential_id, 
     //     bytes, 
     //     holder_did, 
@@ -55,7 +55,7 @@ pub async fn register_new_vc_idsc(
     let call = idsc_instance
         .connect(eth_client.clone())
         .method::<(U256, Bytes, std::string::String, U256, U256, Bytes), ()>(
-        "validate_and_store_VC",
+        "add_user",
         (
             credential_id, 
             pseudo_sign_bytes, 

@@ -31,16 +31,6 @@ pub struct CredentialIssuedResponse {
 
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct PurchaseCredentialRequestDTO {
-    pub did: String,
-    pub nft_address: String,
-    pub challenge: String,
-    pub wallet_signature: String,
-    pub identity_signature: String
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct CredentialSubject {
     pub name: String,
     pub surname: String
