@@ -1,6 +1,4 @@
 # mediterraneus-issuer-rs
-
-![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)
 ![Iota](https://img.shields.io/badge/iota-29334C?style=for-the-badge&logo=iota&logoColor=white)
 
 Issuer of verifiable credentials using smart contracts to bind the pseudonymous identity with the Self Sovereign Identity. Sample implementation for the Mediterraneus Protocol.
@@ -32,3 +30,7 @@ Consider that if the local node setup is used the IDentity ABI must be manually 
 https://github.com/actix/examples/blob/master/databases/postgres/src/main.rs
 
 https://docs.rs/ethers/latest/ethers/contract/struct.ContractInstance.html
+
+## License
+
+[GPL-3.0-or-later](https://spdx.org/licenses/GPL-3.0-or-later.html)
