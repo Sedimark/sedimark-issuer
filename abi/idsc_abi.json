@@ -349,7 +349,7 @@
         "type": "bytes"
       }
     ],
-    "name": "validate_and_store_VC",
+    "name": "add_user",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

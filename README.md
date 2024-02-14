@@ -16,16 +16,14 @@ Before issuing a VC the Issuer must perform the following operations:
 
 ## Running the Application
 ```sh
-cd mediterraneus-issuer-rs/src
-
 # For local node Provider
-cargo run -- -l
+cargo run --release -- -l
 
 # For Shimmer Provider
-cargo run 
+cargo run --release
 
 # For custom Provider
-cargo run -- --custom-node https://sepolia.infura.io/v3/<API_KEY> --chain-id 11155111
+cargo run --release -- --custom-node https://sepolia.infura.io/v3/<API_KEY> --chain-id 11155111
 ```
 
 Consider that if the local node setup is used the IDentity ABI must be manually copied in the "abi" folder. Also the file must be named "idsc_abi.json".

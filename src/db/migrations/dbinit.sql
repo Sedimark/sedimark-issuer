@@ -1,6 +1,10 @@
+-- SPDX-FileCopyrightText: 2024 Fondazione LINKS
+
+-- SPDX-License-Identifier: GPL-3.0-or-later
+
 CREATE TABLE identity(
     did text PRIMARY KEY,
-    privkey bytea NOT NULL
+    fragment text NOT NULL
 );
 
 CREATE TABLE holders_requests(

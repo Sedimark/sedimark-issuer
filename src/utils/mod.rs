@@ -2,5 +2,5 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-pub mod identity_dtos;
-pub mod challenges_dtos;
+pub mod iota_utils;
+pub mod ether_utils;

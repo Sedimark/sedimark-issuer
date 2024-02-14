@@ -1,9 +1,13 @@
+// SPDX-FileCopyrightText: 2024 Fondazione LINKS
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::sync::Arc;
 use ethers::{core::types::{Bytes, U256}, prelude::abigen, utils::hex::FromHex};
-use crate::{EthClient, LocalContractInstance, utils::remove_0x_prefix};
+use crate::{EthClient, LocalContractInstance, utils::iota_utils::remove_0x_prefix};
 
-// Generate the type-safe contract bindings by providing the ABI
-// definition
+// Generate the type-safe contract bindings by providing the ABI definition
+// TODO: use Abigen to generate the contract bindings from the ABI
 abigen!(
     IDSC,
     "./abi/idsc_abi.json",
@@ -26,21 +30,23 @@ pub async fn get_free_vc_id(
 pub async fn register_new_vc_idsc(
     idsc_instance: LocalContractInstance,
     eth_client: Arc<EthClient>,
-    vc_id: i64, pseudo_sign: String, holder_did: &String, exp_unix: i64, issuance_unix: i64, challenge: String
+    credential_id: U256, 
+    wallet_sign: &String, 
+    holder_did: &String, 
+    exp_unix: i64, 
+    issuance_unix: i64, 
+    challenge: String
 ) -> anyhow::Result<()> {
-    let pseudo_sign_bytes = Bytes::from(Vec::from_hex(remove_0x_prefix(pseudo_sign.clone())).unwrap());
-    let challenge_bytes = Bytes::from(challenge.clone().into_bytes());
-    log::info!("{:?}", challenge.into_bytes() );
-    log::info!("{:?}", challenge_bytes );
-
-
+    let pseudo_sign_bytes = Bytes::from(Vec::from_hex(remove_0x_prefix(&wallet_sign))?);
+    let challenge_bytes = Bytes::from(challenge.into_bytes());
+ 
     // 2 ways of doing the same thing 
     
     // let address: Address = "0xa3740B38131A0738DA7A6097261f5Bc5500cb24d".parse().unwrap();
     // let contract = IDSC::new(address, eth_client.clone());
     
-    // let tx = contract.validate_and_store_vc(
-    //     U256::from(vc_id), 
+    // let tx = contract.add_user(
+    //     credential_id, 
     //     bytes, 
     //     holder_did, 
     //     U256::from_dec_str(exp_unix.to_string().as_str()).unwrap(), 
@@ -53,9 +59,9 @@ pub async fn register_new_vc_idsc(
     let call = idsc_instance
         .connect(eth_client.clone())
         .method::<(U256, Bytes, std::string::String, U256, U256, Bytes), ()>(
-        "validate_and_store_VC",
+        "add_user",
         (
-            U256::from(vc_id), 
+            credential_id, 
             pseudo_sign_bytes, 
             holder_did.clone(),  
             U256::from_dec_str(exp_unix.to_string().as_str()).unwrap(),
