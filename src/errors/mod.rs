@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Fondazione LINKS
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use deadpool_postgres::PoolError;
 use actix_web::{HttpResponse, ResponseError, http::header::ContentType};
 use reqwest::StatusCode;

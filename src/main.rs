@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Fondazione LINKS
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::env;
 use std::sync::{Arc, RwLock};
 use iota_sdk::client::Client;

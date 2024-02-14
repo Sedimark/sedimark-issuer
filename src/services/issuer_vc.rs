@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Fondazione LINKS
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use anyhow::Result;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Credential, Subject, CredentialBuilder, Jwt, JwtCredentialValidator, JwtCredentialValidationOptions, FailFast, DecodedJwtCredential}, core::{Url, Timestamp, FromJson, Duration, Object}, iota::IotaDocument, did::DID, storage::{JwkDocumentExt, JwsSignatureOptions}};

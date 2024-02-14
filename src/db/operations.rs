@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Fondazione LINKS
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use anyhow::Context;
 use deadpool_postgres::Client as PostgresClient;
 use identity_iota::core::Timestamp;

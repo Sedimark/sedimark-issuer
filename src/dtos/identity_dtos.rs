@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Fondazione LINKS
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use identity_iota::credential::Jwt;
 use iota_sdk::U256;
 use serde::{Deserialize, Serialize};

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2024 Fondazione LINKS
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use identity_iota::{prelude::{IotaDID, IotaDocument}, verification::{MethodScope, jws::JwsAlgorithm}, credential::Credential, storage::{Storage, JwkDocumentExt, JwkMemStore}, iota::{NetworkName, IotaIdentityClientExt, IotaClientExt}};
 use identity_stronghold::StrongholdStorage;
 use iota_sdk::{client::{secret::{stronghold::StrongholdSecretManager, SecretManager}, stronghold::StrongholdAdapter, Client, node_api::indexer::query_parameters::QueryParameter, Password, constants::SHIMMER_COIN_TYPE, api::GetAddressesOptions}, crypto::keys::bip39::Mnemonic, types::block::{address::{Bech32Address, Address}, output::AliasOutput}, Wallet, wallet::ClientOptions};

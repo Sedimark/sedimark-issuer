@@ -1,9 +1,13 @@
+// SPDX-FileCopyrightText: 2024 Fondazione LINKS
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 use std::sync::Arc;
 use ethers::{core::types::{Bytes, U256}, prelude::abigen, utils::hex::FromHex};
 use crate::{EthClient, LocalContractInstance, utils::iota_utils::remove_0x_prefix};
 
-// Generate the type-safe contract bindings by providing the ABI
-// definition
+// Generate the type-safe contract bindings by providing the ABI definition
+// TODO: use Abigen to generate the contract bindings from the ABI
 abigen!(
     IDSC,
     "./abi/idsc_abi.json",
