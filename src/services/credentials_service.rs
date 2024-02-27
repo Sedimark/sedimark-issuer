@@ -60,7 +60,7 @@ pub async fn create_credential(
                     .get("blockchainAccountId")
                     .ok_or(IssuerError::InvalidVerificationMethodType)?
                     .as_str().ok_or(IssuerError::InvalidVerificationMethodType)?
-                    .strip_prefix("eip:1:")
+                    .strip_prefix("eip155:1:")
                     .ok_or(IssuerError::InvalidVerificationMethodType)?;
 
                     log::info!("eth addr: {}", eth_addr);
