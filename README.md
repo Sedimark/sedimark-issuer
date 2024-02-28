@@ -1,7 +1,7 @@
 # mediterraneus-issuer-rs
 ![Iota](https://img.shields.io/badge/iota-29334C?style=for-the-badge&logo=iota&logoColor=white)
 
-Issuer of verifiable credentials utilizing smart contracts to bind Externally Owned Accounts (EOAs) with Self-Sovereign Identities (SSI). Sample implementation for the Mediterraneus Protocol.
+Issuer of verifiable credentials using smart contracts to bind Externally Owned Accounts (EOAs) with Self-Sovereign Identities (SSI). Sample implementation for the Mediterraneus Protocol.
 
 ## Requirements
 1. [cargo](https://www.rust-lang.org/learn/get-started), with `rustc 1.74 or newer`
