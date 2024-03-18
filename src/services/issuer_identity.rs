@@ -35,11 +35,3 @@ pub async fn create_or_recover_identity(key_storage: &MemStorage, stronghold_sto
         },
     }
 }
-
-// pub async fn resolve_did(client: Client, holder_did: &String) -> Result<IotaDocument, identity_iota::iota::Error> {
-//     todo!();
-// //     let did = convert_string_to_iotadid(holder_did);
-// //     let resolved_doc = client.resolve_did(&did).await?;
-
-//     // Ok(resolved_doc)
-// }

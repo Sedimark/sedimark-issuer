@@ -186,7 +186,7 @@ pub async fn download_contract_abi_file() -> anyhow::Result<(), ()> {
     .text()
     .await.unwrap();
 
-  let mut file = File::create("../abi/idsc_abi.json.").unwrap();
+  let mut file = File::create("../abi/identity_sc.json.").unwrap();
   let correct_json: AbiDTO = serde_json::from_str(&body).unwrap();
   file.write_all(correct_json.result.as_bytes()).unwrap();
 

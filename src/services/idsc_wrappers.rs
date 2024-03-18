@@ -10,7 +10,7 @@ use crate::{EthClient, LocalContractInstance, utils::iota_utils::remove_0x_prefi
 // TODO: use Abigen to generate the contract bindings from the ABI
 abigen!(
     IDSC,
-    "./abi/idsc_abi.json",
+    "./abi/identity_sc.json",
     event_derives(serde::Deserialize, serde::Serialize)
 );
 
