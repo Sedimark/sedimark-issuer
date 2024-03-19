@@ -25,7 +25,7 @@ async fn create_credential (
     Ok(HttpResponse::Ok()
     .body(serde_json::to_string::<CredentialIssuedResponse>(
         &CredentialIssuedResponse { 
-            message: "VC issued. In order to activate it contact the IDentity SC.".to_string(),
+            message: "Verifiable Credential issued".to_string(),
             issuer_did: issuer_state.get_ref().issuer_identity.did.clone(),
             credential_id: credential_id,
             credential_jwt: credential_jwt

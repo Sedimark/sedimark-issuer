@@ -58,14 +58,13 @@ pub async fn register_new_vc_idsc(
     
     let call = idsc_instance
         .connect(eth_client.clone())
-        .method::<(U256, Bytes, std::string::String, U256, U256, Bytes), ()>(
+        .method::<(U256, U256, U256, Bytes, Bytes), ()>(
         "add_user",
         (
             credential_id, 
-            pseudo_sign_bytes, 
-            holder_did.clone(),  
             U256::from_dec_str(exp_unix.to_string().as_str()).unwrap(),
             U256::from_dec_str(issuance_unix.to_string().as_str()).unwrap(), 
+            pseudo_sign_bytes, 
             challenge_bytes
             // <[u8; 16]>::try_from(Vec::from_hex(challenge.clone()).unwrap()).unwrap()
         ))
