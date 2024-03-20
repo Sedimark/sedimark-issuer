@@ -59,7 +59,7 @@ pub async fn register_new_vc_idsc(
     let call = idsc_instance
         .connect(eth_client.clone())
         .method::<(U256, U256, U256, Bytes, Bytes), ()>(
-        "add_user",
+        "addUser",
         (
             credential_id, 
             U256::from_dec_str(exp_unix.to_string().as_str()).unwrap(),
