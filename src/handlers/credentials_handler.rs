@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use actix_web::{web, HttpResponse, Responder, post};
+use actix_web::{web, HttpResponse, Responder, post, delete};
 use deadpool_postgres::Pool;
 use serde_json::json;
 use crate::dtos::identity_dtos::{CredentialRequestDTO, CredentialIssuedResponse};
@@ -10,7 +10,7 @@ use crate::IssuerState;
 use crate::errors::IssuerError;
 use crate::services::credentials_service::create_credential as create_credential_service;
 
-#[post("")]
+#[post("/credentials")]
 async fn create_credential (
     req_body: web::Json<CredentialRequestDTO>, 
     pool: web::Data<Pool>,
@@ -33,16 +33,13 @@ async fn create_credential (
     .unwrap()))
 }
 
-// TODO: revoke API (must be admin api to let only issuer revoke a VC)
+// TODO: revoke API
+// #[delete("/credentials")]
+// async fn revoke_credential ( ) -> Result<impl Responder, IssuerError>{
+//     todo!();
+// }
 
 
 pub fn scoped_config(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-         // prefixes all resources and routes attached to it...
-        web::scope("/credentials")
-            // .service(request_credential)
-            // .service(activate_credential)
-            .service(create_credential)
-
-    );
+    cfg.service(create_credential);
 }

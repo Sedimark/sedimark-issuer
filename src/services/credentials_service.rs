@@ -10,8 +10,9 @@ use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Jws, Jwt}, document::verifiable::JwsVerificationOptions, iota::{IotaIdentityClientExt, IotaDID}};
 use iota_sdk::{U256, types::block::address};
 
-use crate::{db::operations::{get_holder_request, remove_holder_request}, utils::iota_utils::setup_client}; 
-use crate::db::models::is_empty_request;
+use crate::repository::operations::HoldersRequestsExt;
+use crate::utils::iota_utils::setup_client; 
+use crate::repository::models::is_empty_request;
 use crate::errors::IssuerError;
 // use ethers::utils::hex::FromHex;
 
@@ -27,8 +28,9 @@ pub async fn create_credential(
     request_dto: CredentialRequestDTO
 ) -> Result<(U256,Jwt), IssuerError>  {
     
+    let pg_client = &pool.get().await?;
     // read the request from the DB 
-    let holder_request = get_holder_request(&pool.get().await?, &request_dto.did).await?;
+    let holder_request = pg_client.get_holder_request(&request_dto.did).await?;
     // first check request is valid (anti replay, the hash serves as nonce)
     let resp = match is_empty_request(holder_request.clone()) {
         false => { // request is not empty ==>  valid
@@ -78,7 +80,7 @@ pub async fn create_credential(
                         &holder_document.id().to_string()
                     ).await.unwrap();
 
-                    remove_holder_request(&pool.get().await?, &holder_document.id().to_string()).await?;
+                    pg_client.remove_holder_request(&holder_document.id().to_string()).await?;
 
                     Ok((credential_id,credential_jwt))
                 },

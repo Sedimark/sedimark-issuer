@@ -4,15 +4,12 @@
 
 use std::env;
 use std::sync::{Arc, RwLock};
-use iota_sdk::client::Client;
+use mediterraneus_issuer::repository::postgres_repo::init;
 use mediterraneus_issuer::services::issuer_identity::create_or_recover_identity;
-use mediterraneus_issuer::utils::iota_utils::{ensure_address_has_funds, create_or_recover_key_storage};
-use mediterraneus_issuer::{IssuerState, EthClient, LocalContractInstance};
+use mediterraneus_issuer::utils::iota_utils::create_or_recover_key_storage;
+use mediterraneus_issuer::IssuerState;
 use mediterraneus_issuer::services::issuer_wallet::setup_eth_wallet;
-use mediterraneus_issuer::services::{issuer_wallet, issuer_identity};
-use mediterraneus_issuer::config::config;
 use mediterraneus_issuer::handlers::{credentials_handler, challenges_handler};
-use tokio_postgres::NoTls;
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
 use actix_cors::Cors;
 use ethers::providers::{Provider, Http};
@@ -48,15 +45,15 @@ async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     env_logger::init();
 
-    let config = config::get_db_config();
-    let pool = config.create_pool(None, NoTls).unwrap();
+    // Initialize database connection pool
+    let db_pool = init().await?;
 
     let address = env::var("ADDR").expect("$ADDR must be set.");
     let port = env::var("PORT").expect("$PORT must be set.").parse::<u16>().unwrap();
 
     // Create or load issuer's identity.
     let (key_storage, secret_manager) = create_or_recover_key_storage().await?;
-    let (issuer_identity, issuer_document ) = create_or_recover_identity(&key_storage,  &secret_manager, &pool).await?;
+    let (issuer_identity, issuer_document ) = create_or_recover_identity(&key_storage,  &secret_manager, &db_pool).await?;
         
     let (provider, chain_id) = if args.custom_node.is_some() && args.chain_id.is_some() {
         log::info!("Initializing custom provider");
@@ -88,13 +85,13 @@ async fn main() -> anyhow::Result<()> {
     HttpServer::new(move || {
         let cors = Cors::default()
         .allow_any_origin() // TODO: define who is allowed
-        .allowed_methods(vec!["GET", "POST"])
+        .allowed_methods(vec!["GET", "POST", "DELETE"])
         .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
         .allowed_header(http::header::CONTENT_TYPE)
         .max_age(3600);
 
         App::new()
-            .app_data(web::Data::new(pool.clone()))
+            .app_data(web::Data::new(db_pool.clone()))
             .app_data(web::Data::new(
                 IssuerState {
                     secret_manager: secret_manager_arc.clone(),

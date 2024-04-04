@@ -2,17 +2,16 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-pub mod config;
 pub mod handlers;
 pub mod dtos;
 pub mod services;
 pub mod utils;
 pub mod errors;
-pub mod db;
+pub mod repository;
 
 use std::sync::{Arc, RwLock};
 
-use db::models::Identity;
+use repository::models::Identity;
 
 use ethers::providers::{Provider, Http};
 use ethers::prelude::k256::ecdsa::SigningKey;
