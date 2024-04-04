@@ -29,10 +29,10 @@ struct Args {
 
     /// Custom json rpc url
     #[arg(long, required=false, requires="chain_id" )]
-    custom_node: Option<String>,
+    rpc_provider: Option<String>,
 
     /// Custom chain id
-    #[arg(long, required=false, requires="custom_node")]
+    #[arg(long, required=false, requires="rpc_provider")]
     chain_id: Option<u64>,
 }
 
@@ -55,9 +55,9 @@ async fn main() -> anyhow::Result<()> {
     let (key_storage, secret_manager) = create_or_recover_key_storage().await?;
     let (issuer_identity, issuer_document ) = create_or_recover_identity(&key_storage,  &secret_manager, &db_pool).await?;
         
-    let (provider, chain_id) = if args.custom_node.is_some() && args.chain_id.is_some() {
+    let (provider, chain_id) = if args.rpc_provider.is_some() && args.chain_id.is_some() {
         log::info!("Initializing custom provider");
-        (Provider::<Http>::try_from( args.custom_node.unwrap())? , args.chain_id.unwrap())
+        (Provider::<Http>::try_from( args.rpc_provider.unwrap())? , args.chain_id.unwrap())
     } else if args.local_node == false {
         log::info!("Initializing Shimmer provider");
         (Provider::<Http>::try_from(env::var("SHIMMER_JSON_RPC_URL")
