@@ -10,6 +10,9 @@ use crate::IssuerState;
 use crate::errors::IssuerError;
 use crate::services::credentials_service::create_credential as create_credential_service;
 
+use actix_web_lab::middleware::from_fn;
+use crate::middlewares::ver_presentation_jwt::verify_presentation_jwt;
+
 #[post("/credentials")]
 async fn create_credential (
     req_body: web::Json<CredentialRequestDTO>, 
@@ -34,10 +37,13 @@ async fn create_credential (
 }
 
 // TODO: revoke API
-// #[delete("/credentials")]
-// async fn revoke_credential ( ) -> Result<impl Responder, IssuerError>{
-//     todo!();
-// }
+#[delete("/credentials/{credential_id}", wrap = "from_fn(verify_presentation_jwt)")]
+async fn revoke_credential (
+    path: web::Path<i64>,
+) -> Result<impl Responder, IssuerError> {
+    let credential_id = path.into_inner();
+    todo!();
+}
 
 
 pub fn scoped_config(cfg: &mut web::ServiceConfig) {

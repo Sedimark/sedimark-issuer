@@ -8,18 +8,20 @@ license = "GPL-3.0-or-later"
 
 [dependencies]
 actix-web = "4"
+actix-web-lab = "0.20.1"
+actix-cors = "0.6.4"
+
 log = "0.4.0"
+env_logger = "0.10.0"
 dotenv = "0.15.0"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0"
-env_logger = "0.10.0"
 anyhow = "1.0.71"
 config = "0.13.1"
 deadpool-postgres = { version = "0.10.2", features = ["serde"] }
 tokio-pg-mapper = "0.2.0"
 tokio-pg-mapper-derive = "0.2.0"
 tokio-postgres = "0.7.6"
-actix-cors = "0.6.4"
 iota-sdk = { version = "1.1.2", features = ["stronghold", "rocksdb"]}
 identity_iota = { version = "1.0.0", features = ["memstore"]}
 identity_eddsa_verifier = "1.0.0"

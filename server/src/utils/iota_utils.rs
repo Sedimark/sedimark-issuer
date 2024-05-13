@@ -16,9 +16,22 @@ use crate::{dtos::identity_dtos::AbiDTO, errors::IssuerError};
 
 pub type MemStorage = Storage<StrongholdStorage, StrongholdStorage>;
 
-// pub fn setup_client_options() -> ClientOptions { 
-//     ClientOptions::new().with_primary_node(&env::var("NODE_URL").unwrap(), None).unwrap()
-// }
+pub struct IotaState {
+  pub client: Client,
+  pub stronghold_storage: StrongholdStorage,
+  pub key_storage: MemStorage,
+  pub address: Bech32Address,
+  pub faucet_url: String
+}
+
+pub struct IssuerState {
+  pub key_storage: Arc<RwLock<MemStorage>>,
+  pub secret_manager: Arc<RwLock<StrongholdStorage>>,
+  pub issuer_identity: Identity,
+  pub issuer_document: IotaDocument,
+  pub eth_client: Arc<EthClient>,
+  pub idsc_instance: LocalContractInstance
+}
 
 pub async fn setup_client() -> Result<Client, IssuerError> {
   Client::builder().with_node(&env::var("NODE_URL").unwrap())?.finish().await.map_err(|e| IssuerError::from(e))
@@ -216,22 +229,18 @@ pub fn get_abi_from_file() -> String {
   abi
 }
 
-pub fn convert_string_to_iotadid(did: &String) -> IotaDID {
-  IotaDID::parse(did).unwrap()
-}
+// pub fn extract_pub_key_from_doc(did_doc: IotaDocument) -> Vec<u8> {
+//   did_doc.methods(Some(MethodScope::VerificationMethod))[0].data().try_decode().unwrap()
+// }
 
-pub fn extract_pub_key_from_doc(did_doc: IotaDocument) -> Vec<u8> {
-  did_doc.methods(Some(MethodScope::VerificationMethod))[0].data().try_decode().unwrap()
-}
+// pub fn get_vc_id_from_credential(vc: Credential) -> i64 {
+//   let full_id = vc.id.unwrap();
 
-pub fn get_vc_id_from_credential(vc: Credential) -> i64 {
-  let full_id = vc.id.unwrap();
-
-  let split: Vec<&str> = full_id.as_str().split("/").collect();
-  let id = split.get(split.len() - 1).unwrap().to_owned();
-  let num: i64 = id.parse().unwrap();
-  num
-}
+//   let split: Vec<&str> = full_id.as_str().split("/").collect();
+//   let id = split.get(split.len() - 1).unwrap().to_owned();
+//   let num: i64 = id.parse().unwrap();
+//   num
+// }
 
 pub fn remove_0x_prefix(hex_string: &String) -> String {
   hex_string.strip_prefix("0x").unwrap().to_string()

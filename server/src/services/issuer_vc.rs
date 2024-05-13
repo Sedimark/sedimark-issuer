@@ -28,10 +28,10 @@ async fn issue_vc(
     }))?;
 
     // Build credential using subject above and issuer.
-    let credential_base_url = "https://example.market/credentials/";
+    let credential_base_url = "https://example.market/credentials/";  //TODO: define a uri
 
     let credential: Credential = CredentialBuilder::default()
-    .id(Url::parse( format!("{}{}", credential_base_url, vc_id))?) //TODO: define a uri
+    .id(Url::parse( format!("{}{}", credential_base_url, vc_id))?)
     .issuer(Url::parse(issuer_document.id().as_str())?)
     .type_("MarketplaceCredential") // TODO: define a type somewhere else
     .expiration_date(Timestamp::now_utc().checked_add(Duration::days(365)).unwrap()) // TODO: define this as a parameter

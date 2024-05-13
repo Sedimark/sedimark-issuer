@@ -45,6 +45,10 @@ pub enum IssuerError {
     TokioPostgresMapperError(#[from] tokio_pg_mapper::Error),
     #[error("Pool error")]
     PoolError(#[from] PoolError),
+    
+    #[error("Middleware error: {0}")]
+    MiddlewareError(String),
+
     #[error("Unknown service error")]
     Unknown,
 }
@@ -75,6 +79,7 @@ impl ResponseError for IssuerError {
             IssuerError::InvalidVerificationMethodType => StatusCode::BAD_REQUEST,
             IssuerError::SignatureError(_) => StatusCode::BAD_REQUEST,
             IssuerError::AddressRecoveryError => StatusCode::BAD_REQUEST,
+            IssuerError::MiddlewareError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

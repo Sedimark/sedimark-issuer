@@ -8,7 +8,7 @@ use mediterraneus_issuer::repository::postgres_repo::init;
 use mediterraneus_issuer::services::issuer_identity::create_or_recover_identity;
 use mediterraneus_issuer::utils::iota_utils::create_or_recover_key_storage;
 use mediterraneus_issuer::IssuerState;
-use mediterraneus_issuer::services::issuer_wallet::setup_eth_wallet;
+use mediterraneus_issuer::utils::ether_utils::setup_eth_wallet;
 use mediterraneus_issuer::handlers::{credentials_handler, challenges_handler};
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
 use actix_cors::Cors;

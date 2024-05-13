@@ -8,6 +8,7 @@ pub mod services;
 pub mod utils;
 pub mod errors;
 pub mod repository;
+pub mod middlewares;
 
 use std::sync::{Arc, RwLock};
 
