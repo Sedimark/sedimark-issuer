@@ -11,7 +11,7 @@ use deadpool_postgres::Pool;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{core::Object, credential::{DecodedJwtCredential, DecodedJwtPresentation, FailFast, Jwt, JwtCredentialValidationOptions, JwtCredentialValidator, JwtCredentialValidatorUtils, JwtPresentationValidationOptions, JwtPresentationValidator, JwtPresentationValidatorUtils, SubjectHolderRelationship}, did::{CoreDID, DID}, document::verifiable::JwsVerificationOptions, iota::IotaDocument, resolver::Resolver};
 
-use crate::{errors::IssuerError, IssuerState};
+use crate::{errors::IssuerError, IotaState};
 
 // TODO: handle expiration and errors (no unwraps)
 pub async fn verify_presentation_jwt(
@@ -21,7 +21,7 @@ pub async fn verify_presentation_jwt(
     // pre-processing
     log::info!("Hi from start 1. You requested: {}", req.path());
     let db_pool = req.app_data::<web::Data<Pool>>().ok_or(IssuerError::MiddlewareError("no db pool".to_string())).unwrap();
-    let iota_state = req.app_data::<web::Data<IssuerState>>().ok_or(IssuerError::MiddlewareError("no iota state".to_string())).unwrap();
+    let iota_state = req.app_data::<web::Data<IotaState>>().ok_or(IssuerError::MiddlewareError("no iota state".to_string())).unwrap();
 
     // Extract the JWT from the request.
     let bearer = req.headers().get("authorization")

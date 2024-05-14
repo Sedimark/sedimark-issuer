@@ -35,6 +35,10 @@ pub enum IssuerError {
     SignatureError(#[from] ethers::types::SignatureError),
     #[error("Address recovery error")]
     AddressRecoveryError,
+    #[error("Contract error: {0}")]
+    ContractError(String),
+    #[error("Smart Contract address recovery Error")]
+    ContractAddressRecoveryError,
     
     // Database Errors
     #[error("Row not found")]   
@@ -48,6 +52,9 @@ pub enum IssuerError {
     
     #[error("Middleware error: {0}")]
     MiddlewareError(String),
+
+    #[error("Other error: {0}")]
+    OtherError(String),
 
     #[error("Unknown service error")]
     Unknown,
@@ -80,6 +87,9 @@ impl ResponseError for IssuerError {
             IssuerError::SignatureError(_) => StatusCode::BAD_REQUEST,
             IssuerError::AddressRecoveryError => StatusCode::BAD_REQUEST,
             IssuerError::MiddlewareError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            IssuerError::ContractAddressRecoveryError => StatusCode::INTERNAL_SERVER_ERROR,
+            IssuerError::ContractError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            IssuerError::OtherError(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 }

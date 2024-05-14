@@ -6,9 +6,8 @@ use std::env;
 use std::sync::{Arc, RwLock};
 use mediterraneus_issuer::repository::postgres_repo::init;
 use mediterraneus_issuer::services::issuer_identity::create_or_recover_identity;
-use mediterraneus_issuer::utils::iota_utils::create_or_recover_key_storage;
-use mediterraneus_issuer::IssuerState;
-use mediterraneus_issuer::utils::ether_utils::setup_eth_wallet;
+use mediterraneus_issuer::utils::iota::create_or_recover_key_storage;
+use mediterraneus_issuer::{IotaState, SignerMiddlewareShort};
 use mediterraneus_issuer::handlers::{credentials_handler, challenges_handler};
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
 use actix_cors::Cors;
@@ -16,34 +15,28 @@ use ethers::providers::{Provider, Http};
 use ethers::middleware::SignerMiddleware;
 use ethers::signers::{LocalWallet, Signer};
 
-use clap::{Parser, ArgAction};
+use clap::Parser;
 
-/// Simple program to greet a person
+/// Connector command line arguments
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Whether the provider must be configured with a local Hardhat node or not.
-    /// By default, the Shimmer Provider will be configured, if no custom url and chain id are provided.
-    #[arg(short, long, action=ArgAction::SetTrue)]
-    local_node: bool,
+    /// JSON RPC provider url
+    #[arg(short, long, required=true)]
+    rpc_provider: String,
 
-    /// Custom json rpc url
-    #[arg(long, required=false, requires="chain_id" )]
-    rpc_provider: Option<String>,
-
-    /// Custom chain id
-    #[arg(long, required=false, requires="rpc_provider")]
-    chain_id: Option<u64>,
+    /// chain id
+    #[arg(short, long, required=true)]
+    chain_id: u64,
 }
-
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
-    log::info!("{}", args.local_node);
-
     dotenv::dotenv().ok();
     env_logger::init();
+
+    // Parse command line arguments
+    let args = Args::parse();
 
     // Initialize database connection pool
     let db_pool = init().await?;
@@ -54,32 +47,22 @@ async fn main() -> anyhow::Result<()> {
     // Create or load issuer's identity.
     let (key_storage, secret_manager) = create_or_recover_key_storage().await?;
     let (issuer_identity, issuer_document ) = create_or_recover_identity(&key_storage,  &secret_manager, &db_pool).await?;
-        
-    let (provider, chain_id) = if args.rpc_provider.is_some() && args.chain_id.is_some() {
-        log::info!("Initializing custom provider");
-        (Provider::<Http>::try_from( args.rpc_provider.unwrap())? , args.chain_id.unwrap())
-    } else if args.local_node == false {
-        log::info!("Initializing Shimmer provider");
-        (Provider::<Http>::try_from(env::var("SHIMMER_JSON_RPC_URL")
-            .expect("$SHIMMER_JSON_RPC_URL must be set"))?, 1072u64)
-    } else {
-        log::info!("Initializing local provider");
-        (Provider::<Http>::try_from(env::var("LOCAL_JSON_RPC_URL")
-            .expect("$LOCAL_JSON_RPC_URL must be set"))?, 31337u64)
-    };
     
+    // Initialize provider
+    let rpc_provider =  args.rpc_provider; 
+    let chain_id = args.chain_id;
+
     // Transactions will be signed with the private key below
-    let eth_wallet = env::var("PRIVATE_KEY")
-        .expect("$PRIVATE_KEY must be set")
-        .parse::<LocalWallet>()?
-        .with_chain_id(chain_id);
+    let local_wallet = std::env::var("L2_PRIVATE_KEY").expect("$L2_PRIVATE_KEY must be set")
+    .parse::<LocalWallet>()?
+    .with_chain_id(chain_id);
+    let provider = Provider::<Http>::try_from(rpc_provider)?;
 
-    let eth_client = Arc::new(SignerMiddleware::new(provider, eth_wallet.clone()));
-
-    let idsc_instance = setup_eth_wallet(eth_client.clone()).await;
+    let signer: Arc<SignerMiddlewareShort> = Arc::new(SignerMiddleware::new(provider, local_wallet));
+    let signer_data: web::Data<Arc<SignerMiddlewareShort>> = web::Data::new(signer);
 
     let key_storage_arc = Arc::new(RwLock::new(key_storage));
-    let secret_manager_arc =  Arc::new(RwLock::new( secret_manager.clone() ));
+    let secret_manager_arc =  Arc::new(RwLock::new(secret_manager.clone()));
 
     log::info!("Starting up on {}:{}", address, port);
     HttpServer::new(move || {
@@ -92,14 +75,13 @@ async fn main() -> anyhow::Result<()> {
 
         App::new()
             .app_data(web::Data::new(db_pool.clone()))
+            .app_data(signer_data.clone())
             .app_data(web::Data::new(
-                IssuerState {
+                IotaState {
                     secret_manager: secret_manager_arc.clone(),
                     key_storage: key_storage_arc.clone(),
                     issuer_identity: issuer_identity.clone(),
-                    issuer_document: issuer_document.clone(),
-                    eth_client: eth_client.clone(),
-                    idsc_instance: idsc_instance.clone()
+                    issuer_document: issuer_document.clone()
                 })
             )
             .service(web::scope("/api")

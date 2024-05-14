@@ -18,3 +18,5 @@ Cargo.lock
 postgresdata/
 *.stronghold*
 walletdb/
+
+/src/contracts/identity.rs

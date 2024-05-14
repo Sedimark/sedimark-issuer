@@ -11,7 +11,7 @@ use identity_stronghold::StrongholdStorage;
 use iota_sdk::client::Client;
 use crate::repository::operations::{self, IdentityExt};
 use crate::repository::models::Identity;
-use crate::utils::iota_utils::{MemStorage, create_did, setup_client};
+use crate::utils::iota::{MemStorage, create_did, setup_client};
 
 
 pub async fn create_or_recover_identity(key_storage: &MemStorage, stronghold_storage: &StrongholdStorage, pool: &Pool) -> Result<(Identity, IotaDocument)>{

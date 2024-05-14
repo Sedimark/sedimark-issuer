@@ -2,10 +2,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use identity_iota::{prelude::{IotaDID, IotaDocument}, verification::{MethodScope, jws::JwsAlgorithm}, credential::Credential, storage::{Storage, JwkDocumentExt, JwkMemStore}, iota::{NetworkName, IotaIdentityClientExt, IotaClientExt}};
+use identity_iota::{prelude::IotaDocument, verification::{MethodScope, jws::JwsAlgorithm}, storage::{Storage, JwkDocumentExt, JwkMemStore}, iota::{NetworkName, IotaIdentityClientExt, IotaClientExt}};
 use identity_stronghold::StrongholdStorage;
-use iota_sdk::{client::{secret::{stronghold::StrongholdSecretManager, SecretManager}, stronghold::StrongholdAdapter, Client, node_api::indexer::query_parameters::QueryParameter, Password, constants::SHIMMER_COIN_TYPE, api::GetAddressesOptions}, crypto::keys::bip39::Mnemonic, types::block::{address::{Bech32Address, Address}, output::AliasOutput}, Wallet, wallet::ClientOptions};
-use std::{env, path::PathBuf, path::Path};
+use iota_sdk::{client::{secret::{stronghold::StrongholdSecretManager, SecretManager}, Client, node_api::indexer::query_parameters::QueryParameter, Password, api::GetAddressesOptions}, crypto::keys::bip39::Mnemonic, types::block::{address::Bech32Address, output::AliasOutput}};
+use std::env;
 use anyhow::{Result,Context};
 use reqwest;
 use serde_json::{self};
@@ -16,22 +16,22 @@ use crate::{dtos::identity_dtos::AbiDTO, errors::IssuerError};
 
 pub type MemStorage = Storage<StrongholdStorage, StrongholdStorage>;
 
-pub struct IotaState {
-  pub client: Client,
-  pub stronghold_storage: StrongholdStorage,
-  pub key_storage: MemStorage,
-  pub address: Bech32Address,
-  pub faucet_url: String
-}
+// pub struct IotaState {
+//   pub client: Client,
+//   pub stronghold_storage: StrongholdStorage,
+//   pub key_storage: MemStorage,
+//   pub address: Bech32Address,
+//   pub faucet_url: String
+// }
 
-pub struct IssuerState {
-  pub key_storage: Arc<RwLock<MemStorage>>,
-  pub secret_manager: Arc<RwLock<StrongholdStorage>>,
-  pub issuer_identity: Identity,
-  pub issuer_document: IotaDocument,
-  pub eth_client: Arc<EthClient>,
-  pub idsc_instance: LocalContractInstance
-}
+// pub struct IssuerState {
+//   pub key_storage: Arc<RwLock<MemStorage>>,
+//   pub secret_manager: Arc<RwLock<StrongholdStorage>>,
+//   pub issuer_identity: Identity,
+//   pub issuer_document: IotaDocument,
+//   pub eth_client: Arc<EthClient>,
+//   pub idsc_instance: LocalContractInstance
+// }
 
 pub async fn setup_client() -> Result<Client, IssuerError> {
   Client::builder().with_node(&env::var("NODE_URL").unwrap())?.finish().await.map_err(|e| IssuerError::from(e))
@@ -206,29 +206,6 @@ pub async fn download_contract_abi_file() -> anyhow::Result<(), ()> {
   Ok(())
 }
 
-pub fn is_abi_downloaded() -> bool {
-  let env_path = env::var("ABI_LOCAL_PATH").unwrap();
-  let path = Path::new(&env_path);
-  if path.exists() == true && path.metadata().unwrap().len() > 0 {
-      return true
-  };  
-  return false;
-}
-
-pub fn get_abi_from_file() -> String {
-  let abi = if is_abi_downloaded() == false {
-    "".to_string()
-  } else {
-    let env_path = env::var("ABI_LOCAL_PATH").unwrap();
-    let path = Path::new(&env_path);
-    let mut file = File::open(path).unwrap();
-    let mut data = String::new();
-    file.read_to_string(&mut data).unwrap();
-    data
-  };
-  abi
-}
-
 // pub fn extract_pub_key_from_doc(did_doc: IotaDocument) -> Vec<u8> {
 //   did_doc.methods(Some(MethodScope::VerificationMethod))[0].data().try_decode().unwrap()
 // }
@@ -241,7 +218,3 @@ pub fn get_abi_from_file() -> String {
 //   let num: i64 = id.parse().unwrap();
 //   num
 // }
-
-pub fn remove_0x_prefix(hex_string: &String) -> String {
-  hex_string.strip_prefix("0x").unwrap().to_string()
-}

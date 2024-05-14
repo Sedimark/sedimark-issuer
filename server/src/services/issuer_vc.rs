@@ -2,16 +2,19 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::sync::Arc;
+
 use anyhow::Result;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Credential, Subject, CredentialBuilder, Jwt, JwtCredentialValidator, JwtCredentialValidationOptions, FailFast, DecodedJwtCredential}, core::{Url, Timestamp, FromJson, Duration, Object}, iota::IotaDocument, did::DID, storage::{JwkDocumentExt, JwsSignatureOptions}};
-use iota_sdk::U256;
 use serde_json::json;
-use crate::{IssuerState, errors::IssuerError, utils::iota_utils::MemStorage, dtos::identity_dtos::CredentialSubject};
+use ethers::{abi::{Bytes, RawLog}, contract::EthEvent, types::Address, utils::hex::FromHex};
+use ethers::core::types::U256;
 
-use crate::services::idsc_wrappers::{get_free_vc_id, register_new_vc_idsc};
+use crate::{contracts::identity::{Identity, VcAddedFilter}, dtos::identity_dtos::CredentialSubject, errors::IssuerError, utils::iota::MemStorage, SignerMiddlewareShort};
 
-async fn issue_vc(
+
+pub async fn create_credential(
     holder_document: &IotaDocument, 
     issuer_document: &IotaDocument, 
     vc_id: U256,  
@@ -50,8 +53,7 @@ async fn issue_vc(
     )
     .await?;
 
-    // Before sending this credential to the holder the issuer wants to validate that some properties
-    // of the credential satisfy their expectations.
+    // To ensure the credential's validity, the issuer must validate it before issuing it to the holder
 
     // Validate the credential's signature using the issuer's DID Document, the credential's semantic structure,
     // that the issuance date is not in the future and that the expiration date is not in the past:
@@ -67,51 +69,43 @@ async fn issue_vc(
     Ok((credential_jwt, decoded_credential))
 }
 
-// pub fn hash_vc(vc: Credential) -> Vec<u8> {
-//     ethers::utils::keccak256(vc.to_json_vec().unwrap()).to_vec()
-// }
-
-pub async fn create_vc(
-    holder_document: &IotaDocument, 
-    issuer_document: &IotaDocument, 
-    issuer_state: &IssuerState,
-    credential_subject: CredentialSubject
-) -> Result<(Jwt, DecodedJwtCredential, U256),IssuerError> {
-    // get credential id from Identity Smart Contract
-    let credential_id = get_free_vc_id(issuer_state.idsc_instance.clone(), issuer_state.eth_client.clone()).await;
-    
-    // issue the credential
-    let (credential_jwt, decoded_jwt_credential) = issue_vc(
-        holder_document,
-        issuer_document, 
-        credential_id, 
-        &mut issuer_state.key_storage.write().unwrap(),
-        &issuer_state.issuer_identity.fragment,
-        credential_subject
-    ).await.unwrap();
-    Ok((credential_jwt, decoded_jwt_credential, credential_id))
-}
-
-pub async fn register_new_vc(
-    issuer_state: &IssuerState, 
+pub async fn update_identity_sc(
+    identity_sc: Identity<&Arc<SignerMiddlewareShort>>,
     decoded_jwt_credential: DecodedJwtCredential, 
     credential_id: U256,
     challenge: String, 
     wallet_sign: &String, 
-    holder_did: &String
-) -> anyhow::Result<(), >{
+) -> Result<(), IssuerError> {
 
-    // issuer_state.idsc_instance.event_with_filter(Filter::new().event(event_name))
-    register_new_vc_idsc(
-        issuer_state.idsc_instance.clone(),
-        issuer_state.eth_client.clone(),
+    let wallet_sign_bytes = Bytes::from(Vec::from_hex(wallet_sign.strip_prefix("0x").ok_or(IssuerError::OtherError("Error during strip prefix".to_owned()))?.to_string()).map_err(|_| IssuerError::OtherError("Conversion error".to_owned()))?);
+    let challenge_bytes = Bytes::from(challenge.into_bytes());
+    let expiration_date = U256::from(decoded_jwt_credential.credential.expiration_date.ok_or(IssuerError::OtherError("Expiration date not found".to_owned()))?.to_unix());
+    let issuance_date = U256::from(decoded_jwt_credential.credential.issuance_date.to_unix());
+      
+    let call = identity_sc.add_user(
         credential_id, 
-        wallet_sign, 
-        &holder_did,
-        decoded_jwt_credential.credential.expiration_date.unwrap().to_unix(), 
-        decoded_jwt_credential.credential.issuance_date.to_unix(), 
-        challenge
-    ).await?;
-    
-    Ok(())
+        expiration_date,
+        issuance_date,
+        wallet_sign_bytes.into(), 
+        challenge_bytes.into()
+    );
+    let pending_tx = call.send().await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
+    let receipt = pending_tx.confirmations(1).await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
+
+    let logs = receipt.ok_or(IssuerError::OtherError("No receipt".to_owned()))?.logs;
+
+    // reading the log   
+    for log in logs.iter() {
+        let raw_log = RawLog {
+            topics: log.topics.clone(),
+            data: log.data.to_vec(),
+        };
+        // finding the event
+        if let Ok(event) =  <VcAddedFilter as EthEvent>::decode_log(&raw_log){
+            log::info!("VcAdded event:\n{:?}", event);
+            return Ok(());
+        }
+    }
+    Err(IssuerError::OtherError("no VcAdded event found in the receipt".to_owned()))
+
 }

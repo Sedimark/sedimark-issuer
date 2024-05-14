@@ -22,18 +22,15 @@ use ethers::prelude::Wallet;
 
 use identity_iota::iota::IotaDocument;
 use identity_stronghold::StrongholdStorage;
-use utils::iota_utils::MemStorage;
+use utils::iota::MemStorage;
 
 
-pub type EthClient = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
-pub type LocalContractInstance = ContractInstance<Arc<SignerMiddleware<ethers::providers::Provider<Http>, Wallet<SigningKey>>>, SignerMiddleware<ethers::providers::Provider<Http>, Wallet<SigningKey>>>;
+pub type SignerMiddlewareShort = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
 
 // This struct represents the Issuer state
-pub struct IssuerState {
+pub struct IotaState {
     pub key_storage: Arc<RwLock<MemStorage>>,
     pub secret_manager: Arc<RwLock<StrongholdStorage>>,
     pub issuer_identity: Identity,
     pub issuer_document: IotaDocument,
-    pub eth_client: Arc<EthClient>,
-    pub idsc_instance: LocalContractInstance
 }
