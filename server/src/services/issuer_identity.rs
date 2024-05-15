@@ -2,14 +2,11 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use std::env;
-
 use anyhow::Result;
 use deadpool_postgres::Pool;
 use identity_iota::iota::{IotaDocument, IotaDID, IotaIdentityClientExt};
 use identity_stronghold::StrongholdStorage;
-use iota_sdk::client::Client;
-use crate::repository::operations::{self, IdentityExt};
+use crate::repository::operations::IdentityExt;
 use crate::repository::models::Identity;
 use crate::utils::iota::{MemStorage, create_did, setup_client};
 

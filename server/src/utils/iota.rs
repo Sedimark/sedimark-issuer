@@ -2,6 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::sync::{Arc, RwLock};
+
 use identity_iota::{prelude::IotaDocument, verification::{MethodScope, jws::JwsAlgorithm}, storage::{Storage, JwkDocumentExt, JwkMemStore}, iota::{NetworkName, IotaIdentityClientExt, IotaClientExt}};
 use identity_stronghold::StrongholdStorage;
 use iota_sdk::{client::{secret::{stronghold::StrongholdSecretManager, SecretManager}, Client, node_api::indexer::query_parameters::QueryParameter, Password, api::GetAddressesOptions}, crypto::keys::bip39::Mnemonic, types::block::{address::Bech32Address, output::AliasOutput}};
@@ -11,7 +13,7 @@ use reqwest;
 use serde_json::{self};
 use std::fs::File;
 use std::io::prelude::*;
-use crate::{dtos::identity_dtos::AbiDTO, errors::IssuerError};
+use crate::{dtos::identity_dtos::AbiDTO, errors::IssuerError, repository::models::Identity};
 
 
 pub type MemStorage = Storage<StrongholdStorage, StrongholdStorage>;
@@ -24,14 +26,12 @@ pub type MemStorage = Storage<StrongholdStorage, StrongholdStorage>;
 //   pub faucet_url: String
 // }
 
-// pub struct IssuerState {
-//   pub key_storage: Arc<RwLock<MemStorage>>,
-//   pub secret_manager: Arc<RwLock<StrongholdStorage>>,
-//   pub issuer_identity: Identity,
-//   pub issuer_document: IotaDocument,
-//   pub eth_client: Arc<EthClient>,
-//   pub idsc_instance: LocalContractInstance
-// }
+pub struct IotaState {
+    pub key_storage: Arc<RwLock<MemStorage>>,
+    pub secret_manager: Arc<RwLock<StrongholdStorage>>,
+    pub issuer_identity: Identity,
+    pub issuer_document: IotaDocument,
+}
 
 pub async fn setup_client() -> Result<Client, IssuerError> {
   Client::builder().with_node(&env::var("NODE_URL").unwrap())?.finish().await.map_err(|e| IssuerError::from(e))

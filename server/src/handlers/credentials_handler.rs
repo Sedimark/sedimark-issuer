@@ -8,14 +8,14 @@ use actix_web::{web, HttpResponse, Responder, post, delete};
 use deadpool_postgres::Pool;
 use ethers::abi::RawLog;
 use ethers::contract::EthEvent;
-use ethers::providers::{Http, Provider};
 use ethers::core::types::U256;
 use ethers::types::Address;
 use crate::contracts::identity::{Identity, VcRevokedFilter};
 use crate::dtos::identity_dtos::{CredentialRequestDTO, CredentialIssuedResponse};
-use crate::{IotaState, SignerMiddlewareShort};
 use crate::errors::IssuerError;
 use crate::services::credentials_service::create_credential_service;
+use crate::utils::eth::SignerMiddlewareShort;
+use crate::utils::iota::IotaState;
 
 // use actix_web_lab::middleware::from_fn;
 // use crate::middlewares::ver_presentation_jwt::verify_presentation_jwt;

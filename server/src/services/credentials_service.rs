@@ -4,22 +4,19 @@
 
 use anyhow::Result;
 use deadpool_postgres::Pool;
-use ethers::{types::{Signature, RecoveryMessage, Address}, utils::hex};
+use ethers::types::{Signature, Address};
 use std::{str::FromStr, sync::Arc};
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Jws, Jwt}, document::verifiable::JwsVerificationOptions, iota::{IotaIdentityClientExt, IotaDID}};
-use iota_sdk::{U256, types::block::address};
+use iota_sdk::U256;
 
-use crate::{contracts::identity::Identity, repository::operations::HoldersRequestsExt, services::issuer_vc::create_credential, SignerMiddlewareShort};
+use crate::{contracts::identity::Identity, repository::operations::HoldersRequestsExt, services::issuer_vc::create_credential, utils::{eth::SignerMiddlewareShort, iota::IotaState}};
 use crate::utils::iota::setup_client; 
-use crate::repository::models::is_empty_request;
 use crate::errors::IssuerError;
-// use ethers::utils::hex::FromHex;
 
 use crate::{
     dtos::identity_dtos::CredentialRequestDTO, 
-    services::issuer_vc::update_identity_sc, 
-    IotaState, 
+    services::issuer_vc::update_identity_sc
 };
 
 pub async fn create_credential_service(
@@ -34,7 +31,7 @@ pub async fn create_credential_service(
     let holder_request = pg_client.get_holder_request(&request_dto.did).await?;
     log::info!("{:?}", holder_request);
     // first check request is not empty //TODO: for me this is useless
-    // is_empty_request(holder_request.clone()).then(|| 0).ok_or(IssuerError::NonExistingRequestError)?;
+    // is_empty_request(holder_request.clone()).then(|| 0).ok_or(IssuerError::NonExistingRequestError)?; // fix, should return error if is empty
 
     // resolve DID Doc and extract public key
     let client = setup_client().await?;

@@ -8,10 +8,10 @@ use anyhow::Result;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Credential, Subject, CredentialBuilder, Jwt, JwtCredentialValidator, JwtCredentialValidationOptions, FailFast, DecodedJwtCredential}, core::{Url, Timestamp, FromJson, Duration, Object}, iota::IotaDocument, did::DID, storage::{JwkDocumentExt, JwsSignatureOptions}};
 use serde_json::json;
-use ethers::{abi::{Bytes, RawLog}, contract::EthEvent, types::Address, utils::hex::FromHex};
+use ethers::{abi::{Bytes, RawLog}, contract::EthEvent, utils::hex::FromHex};
 use ethers::core::types::U256;
 
-use crate::{contracts::identity::{Identity, VcAddedFilter}, dtos::identity_dtos::CredentialSubject, errors::IssuerError, utils::iota::MemStorage, SignerMiddlewareShort};
+use crate::{contracts::identity::{Identity, VcAddedFilter}, dtos::identity_dtos::CredentialSubject, errors::IssuerError, utils::{eth::SignerMiddlewareShort, iota::MemStorage}};
 
 
 pub async fn create_credential(
