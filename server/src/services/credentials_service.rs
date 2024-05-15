@@ -29,8 +29,6 @@ pub async fn create_credential_service(
     // read the request from the DB 
     let holder_request = pg_client.get_holder_request(&request_dto.did).await?;
     log::info!("{:?}", holder_request);
-    // first check request is not empty //TODO: for me this is useless
-    // is_empty_request(holder_request.clone()).then(|| 0).ok_or(IssuerError::NonExistingRequestError)?; // fix, should return error if is empty
 
     // resolve DID Doc and extract public key
     let holder_document = iota_state.client.resolve_did(&IotaDID::parse(holder_request.did)?).await?;

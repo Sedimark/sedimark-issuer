@@ -19,10 +19,3 @@ pub struct HoldersRequests {
     pub request_expiration: String,
     pub nonce: String
 }
-
-pub fn is_empty_request(request: HoldersRequests) -> bool {
-    if request.did.len() > 0 && request.request_expiration.len() > 0 && request.nonce.len() > 0 {
-        return false;
-    }
-    return true;
-}
