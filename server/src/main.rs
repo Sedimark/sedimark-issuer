@@ -3,11 +3,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::env;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use mediterraneus_issuer::repository::postgres_repo::init;
-use mediterraneus_issuer::services::issuer_identity::create_or_recover_identity;
 use mediterraneus_issuer::utils::eth::SignerMiddlewareShort;
-use mediterraneus_issuer::utils::iota::{create_or_recover_key_storage, IotaState};
+use mediterraneus_issuer::utils::iota::IotaState;
 use mediterraneus_issuer::handlers::{credentials_handler, challenges_handler};
 use actix_web::{web, App, HttpServer, middleware::Logger, http};
 use actix_cors::Cors;
@@ -38,16 +37,12 @@ async fn main() -> anyhow::Result<()> {
     // Parse command line arguments
     let args = Args::parse();
 
-    // Initialize database connection pool
-    let db_pool = init().await?;
-
     let address = env::var("ADDR").expect("$ADDR must be set.");
     let port = env::var("PORT").expect("$PORT must be set.").parse::<u16>().unwrap();
 
-    // Create or load issuer's identity.
-    let (key_storage, secret_manager) = create_or_recover_key_storage().await?;
-    let (issuer_identity, issuer_document ) = create_or_recover_identity(&key_storage,  &secret_manager, &db_pool).await?;
-    
+    // Initialize database connection pool
+    let db_pool = init().await?;
+
     // Initialize provider
     let rpc_provider =  args.rpc_provider; 
     let chain_id = args.chain_id;
@@ -61,9 +56,10 @@ async fn main() -> anyhow::Result<()> {
     let signer: Arc<SignerMiddlewareShort> = Arc::new(SignerMiddleware::new(provider, local_wallet));
     let signer_data: web::Data<Arc<SignerMiddlewareShort>> = web::Data::new(signer);
 
-    let key_storage_arc = Arc::new(RwLock::new(key_storage));
-    let secret_manager_arc =  Arc::new(RwLock::new(secret_manager.clone()));
-
+    // Initialize iota_state (client, did, etc.), create or load issuer's identity.
+    let iota_state = IotaState::init(&db_pool).await?;
+    let iota_state_data = web::Data::new(iota_state);
+    
     log::info!("Starting up on {}:{}", address, port);
     HttpServer::new(move || {
         let cors = Cors::default()
@@ -76,14 +72,7 @@ async fn main() -> anyhow::Result<()> {
         App::new()
             .app_data(web::Data::new(db_pool.clone()))
             .app_data(signer_data.clone())
-            .app_data(web::Data::new(
-                IotaState {
-                    secret_manager: secret_manager_arc.clone(),
-                    key_storage: key_storage_arc.clone(),
-                    issuer_identity: issuer_identity.clone(),
-                    issuer_document: issuer_document.clone()
-                })
-            )
+            .app_data(iota_state_data.clone())
             .service(web::scope("/api")
                 .configure(credentials_handler::scoped_config)
                 .configure(challenges_handler::scoped_config)

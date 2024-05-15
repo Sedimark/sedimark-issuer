@@ -18,7 +18,7 @@ pub async fn create_credential(
     holder_document: &IotaDocument, 
     issuer_document: &IotaDocument, 
     vc_id: U256,  
-    storage_issuer: &mut MemStorage,
+    storage_issuer: &MemStorage,
     fragment_issuer: &String,
     credential_subject: CredentialSubject
 ) -> Result<(Jwt, DecodedJwtCredential)> {

@@ -7,8 +7,6 @@ use anyhow::Result;
 use deadpool_postgres::{ManagerConfig, RecyclingMethod, Pool};
 use tokio_postgres::NoTls;
 
-pub static SQL_PATH: &str = "../../sql";
-
 pub async fn init() -> Result<Pool> {
     log::info!("init database");
 

@@ -11,7 +11,6 @@ use identity_iota::{credential::{Jws, Jwt}, document::verifiable::JwsVerificatio
 use iota_sdk::U256;
 
 use crate::{contracts::identity::Identity, repository::operations::HoldersRequestsExt, services::issuer_vc::create_credential, utils::{eth::SignerMiddlewareShort, iota::IotaState}};
-use crate::utils::iota::setup_client; 
 use crate::errors::IssuerError;
 
 use crate::{
@@ -22,7 +21,7 @@ use crate::{
 pub async fn create_credential_service(
     pool: Pool,
     signer: &Arc<SignerMiddlewareShort>,
-    issuer_state: &IotaState,
+    iota_state: &IotaState,
     request_dto: CredentialRequestDTO
 ) -> Result<(U256,Jwt), IssuerError>  {
     
@@ -34,8 +33,7 @@ pub async fn create_credential_service(
     // is_empty_request(holder_request.clone()).then(|| 0).ok_or(IssuerError::NonExistingRequestError)?; // fix, should return error if is empty
 
     // resolve DID Doc and extract public key
-    let client = setup_client().await?;
-    let holder_document = client.resolve_did(&IotaDID::parse(holder_request.did)?).await?;
+    let holder_document = iota_state.client.resolve_did(&IotaDID::parse(holder_request.did)?).await?;
     
     // Verify DID ownership, i.e. challenge signed equal to the stored nonce (anti replay)
     let _decoded_jws =  holder_document.verify_jws(
@@ -54,10 +52,10 @@ pub async fn create_credential_service(
     // Create and sign the credential
     let (credential_jwt, decoded_jwt_credential) = create_credential(
         &holder_document,
-        &issuer_state.issuer_document, 
+        &iota_state.issuer_document, 
         credential_id, 
-        &mut issuer_state.key_storage.write().unwrap(),
-        &issuer_state.issuer_identity.fragment,
+        &iota_state.key_storage,
+        &iota_state.issuer_identity.fragment,
         request_dto.credential_subject
     ).await.map_err(|_| IssuerError::OtherError("Conversion error".to_owned()))?;
 
