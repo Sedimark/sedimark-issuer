@@ -12,7 +12,14 @@ use reqwest;
 use serde_json::{self};
 use std::fs::File;
 use std::io::prelude::*;
-use crate::{dtos::identity_dtos::AbiDTO, errors::IssuerError, repository::{models::Identity, operations::IdentityExt}};
+
+use identity_eddsa_verifier::EdDSAJwsVerifier;
+use identity_iota::{credential::{Credential, Subject, CredentialBuilder, Jwt, JwtCredentialValidator, JwtCredentialValidationOptions, FailFast, DecodedJwtCredential}, core::{Url, Timestamp, FromJson, Duration, Object}, did::DID, storage::JwsSignatureOptions};
+use serde_json::json;
+use ethers::core::types::U256;
+
+use crate::dtos::identity_dtos::CredentialSubject;
+use crate::{dtos::identity_dtos::AbiDTO, repository::{models::IssuerIdentity, operations::IssuerIdentityExt}};
 
 
 pub type MemStorage = Storage<StrongholdStorage, StrongholdStorage>;
@@ -29,7 +36,7 @@ pub struct IotaState {
   pub client: Client,
   pub key_storage: MemStorage,
   pub stronghold_storage: StrongholdStorage,
-  pub issuer_identity: Identity,
+  pub issuer_identity: IssuerIdentity,
   pub issuer_document: IotaDocument,
   pub faucet_url: String
 }
@@ -63,7 +70,7 @@ impl IotaState {
 				// create a did with a verification method
 				let (_, issuer_document, fragment) = create_did(&client, secret_manager.as_secret_manager(), &key_storage).await?;
 				// save the created identity
-				let new_issuer_identity = Identity { did: issuer_document.id().to_string(), fragment:  fragment};
+				let new_issuer_identity = IssuerIdentity { did: issuer_document.id().to_string(), fragment:  fragment};
 				pg_client.insert_identity_issuer(&new_issuer_identity).await?;
 				(new_issuer_identity, issuer_document)
 			},
@@ -262,3 +269,59 @@ pub async fn download_contract_abi_file() -> anyhow::Result<(), ()> {
 //   let num: i64 = id.parse().unwrap();
 //   num
 // }
+
+
+pub async fn create_credential(
+    holder_document: &IotaDocument, 
+    issuer_document: &IotaDocument, 
+    vc_id: U256,  
+    storage_issuer: &MemStorage,
+    fragment_issuer: &String,
+    credential_subject: CredentialSubject
+) -> Result<(Jwt, DecodedJwtCredential)> {
+    // Create a credential subject // TODO: fill this from user request
+    let subject: Subject = Subject::from_json_value(json!({
+        "id": holder_document.id().as_str(),
+        "name": credential_subject.name,
+        "surname": credential_subject.surname,
+        "userOf": "SEDIMARK marketplace"
+    }))?;
+
+    // Build credential using subject above and issuer.
+    let credential_base_url = "https://example.market/credentials/";  //TODO: define a uri
+
+    let credential: Credential = CredentialBuilder::default()
+    .id(Url::parse( format!("{}{}", credential_base_url, vc_id))?)
+    .issuer(Url::parse(issuer_document.id().as_str())?)
+    .type_("MarketplaceCredential") // TODO: define a type somewhere else
+    .expiration_date(Timestamp::now_utc().checked_add(Duration::days(365)).unwrap()) // TODO: define this as a parameter
+    .issuance_date(Timestamp::now_utc().checked_sub(Duration::days(1)).unwrap()) //TODO: this solved an error with the eth node time 
+    .subject(subject)
+    .build()?;
+
+    // Sign the credential
+    let credential_jwt: Jwt = issuer_document
+    .create_credential_jwt(
+      &credential,
+      &storage_issuer,
+      &fragment_issuer,
+      &JwsSignatureOptions::default(),
+      None,
+    )
+    .await?;
+
+    // To ensure the credential's validity, the issuer must validate it before issuing it to the holder
+
+    // Validate the credential's signature using the issuer's DID Document, the credential's semantic structure,
+    // that the issuance date is not in the future and that the expiration date is not in the past:
+    let decoded_credential: DecodedJwtCredential<Object> =
+    JwtCredentialValidator::with_signature_verifier(EdDSAJwsVerifier::default())
+    .validate::<_, Object>(
+      &credential_jwt,
+      &issuer_document,
+      &JwtCredentialValidationOptions::default(),
+      FailFast::FirstError,
+    )?;
+    
+    Ok((credential_jwt, decoded_credential))
+}

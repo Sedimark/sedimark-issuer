@@ -2,13 +2,13 @@
 
 -- SPDX-License-Identifier: GPL-3.0-or-later
 
-CREATE TABLE identity(
+CREATE TABLE identities (
     did text PRIMARY KEY,
     fragment text NOT NULL
 );
 
-CREATE TABLE holders_requests(
-    did text PRIMARY KEY NOT NULL,
-    request_expiration text NOT NULL,
-    nonce text NOT NULL
+CREATE TABLE holders_challenges (
+    did_holder          TEXT PRIMARY KEY,
+    challenge           TEXT NOT NULL,
+    expiration			TEXT NOT NULL
 );

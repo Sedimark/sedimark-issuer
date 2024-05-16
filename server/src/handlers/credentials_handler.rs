@@ -2,20 +2,28 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::str::FromStr;
 use std::sync::Arc;
 
 use actix_web::{web, HttpResponse, Responder, post, delete};
 use deadpool_postgres::Pool;
+
 use ethers::abi::RawLog;
 use ethers::contract::EthEvent;
 use ethers::core::types::U256;
-use ethers::types::Address;
+use ethers::types::{Address, Signature};
+
+use identity_eddsa_verifier::EdDSAJwsVerifier;
+use identity_iota::credential::Jws;
+use identity_iota::document::verifiable::JwsVerificationOptions;
+use identity_iota::iota::{IotaDID, IotaIdentityClientExt};
+
 use crate::contracts::identity::{Identity, VcRevokedFilter};
 use crate::dtos::identity_dtos::{CredentialRequestDTO, CredentialIssuedResponse};
 use crate::errors::IssuerError;
-use crate::services::credentials_service::create_credential_service;
-use crate::utils::eth::SignerMiddlewareShort;
-use crate::utils::iota::IotaState;
+use crate::repository::operations::HoldersChallengesExt;
+use crate::utils::eth::{update_identity_sc, SignerMiddlewareShort};
+use crate::utils::iota::{create_credential, IotaState};
 
 // use actix_web_lab::middleware::from_fn;
 // use crate::middlewares::ver_presentation_jwt::verify_presentation_jwt;
@@ -24,20 +32,78 @@ use crate::utils::iota::IotaState;
 async fn issue_credential (
     req_body: web::Json<CredentialRequestDTO>, 
     pool: web::Data<Pool>,
-    issuer_state: web::Data<IotaState>,
+    iota_state: web::Data<IotaState>,
     signer_data: web::Data<Arc<SignerMiddlewareShort>>,
 ) -> Result<impl Responder, IssuerError> {
     log::info!("Issuing credential...");
-    let (credential_id, credential_jwt) = create_credential_service(
-        pool.get_ref().to_owned(),
-        signer_data.get_ref(),
-        issuer_state.get_ref(), 
-        req_body.into_inner()
-    ).await?; 
+
+    let credential_request = req_body.into_inner();
+    let pg_client = &pool.get().await?;
+    // read the request from the DB 
+    let holder_request = pg_client.get_challenge(&credential_request.did).await?;
+    log::info!("{:?}", holder_request);
+
+    // resolve DID Doc and extract public key
+    let holder_document = iota_state.client.resolve_did(&IotaDID::parse(holder_request.did_holder)?).await?;
     
+    // Verify DID ownership, i.e. challenge signed equal to the stored nonce (anti replay)
+    let _decoded_jws =  holder_document.verify_jws(
+        &Jws::from(credential_request.identity_signature), // TODO: evaluate usage of auth header
+        None,
+        &EdDSAJwsVerifier::default(),
+        &JwsVerificationOptions::default().nonce(&holder_request.challenge),
+    )?;
+
+    // Get the first free credential id from Identity Smart Contract
+    let identity_addr: Address = std::env::var("IDENTITY_SC_ADDRESS").expect("$IDENTITY_SC_ADDRESS must be set").parse().map_err(|_| IssuerError::ContractAddressRecoveryError)?;
+    let identity_sc = Identity::new(identity_addr, signer_data.get_ref().into());
+    
+    let credential_id = identity_sc.get_free_v_cid().call().await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
+
+    // Create and sign the credential
+    let (credential_jwt, decoded_jwt_credential) = create_credential(
+        &holder_document,
+        &iota_state.issuer_document, 
+        credential_id, 
+        &iota_state.key_storage,
+        &iota_state.issuer_identity.fragment,
+        credential_request.credential_subject
+    ).await.map_err(|_| IssuerError::OtherError("Conversion error".to_owned()))?;
+
+    // Verify the EOA ownership
+    log::info!("Wallet sign: {:?}", credential_request.wallet_signature);
+    let wallet_sign = Signature::from_str(credential_request.wallet_signature.as_str())?;
+    log::info!("signature {:?}", wallet_sign);
+    let vm = holder_document.resolve_method("#ethAddress", None).ok_or(IssuerError::EthMethodNotFound)?;
+
+    vm.type_().to_string().eq("EcdsaSecp256k1RecoverySignature2020").then(|| Some(())).ok_or(IssuerError::InvalidVerificationMethodType)?;
+    let eth_addr = vm.properties()
+    .get("blockchainAccountId")
+    .ok_or(IssuerError::InvalidVerificationMethodType)?
+    .as_str().ok_or(IssuerError::InvalidVerificationMethodType)?
+    .strip_prefix("eip155:1:")
+    .ok_or(IssuerError::InvalidVerificationMethodType)?;
+
+    log::info!("eth addr: {}", eth_addr);
+    let address: Address = eth_addr.parse().map_err(|_| IssuerError::AddressRecoveryError)?;
+
+    wallet_sign.verify(holder_request.challenge.clone(), address)?;
+    log::info!("Wallet signature verification success!");
+    
+    // Update Identity SC, addUser 
+    update_identity_sc(
+        identity_sc, 
+        decoded_jwt_credential,
+        credential_id, 
+        holder_request.challenge,
+        &credential_request.wallet_signature, 
+    ).await?;
+
+    pg_client.remove_challenge(&holder_document.id().to_string()).await?;
+
     let response = CredentialIssuedResponse { 
-        message: "Verifiable Credential issued".to_string(),
-        issuer_did: issuer_state.get_ref().issuer_identity.did.clone(),
+        message: "Verifiable Credential issued".to_owned(),
+        issuer_did: iota_state.get_ref().issuer_identity.did.clone(),
         credential_id: credential_id,
         credential_jwt: credential_jwt
     };
