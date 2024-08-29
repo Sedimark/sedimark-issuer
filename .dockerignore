@@ -1,0 +1,8 @@
+server/postgresdata
+server/walletdb
+server/wallet.stronghold
+server/key_storage.stronghold
+
+server/src/contracts/identity.rs
+
+server/target

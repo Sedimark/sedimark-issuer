@@ -1,16 +1,48 @@
-version: "3"
+version: '3.9'
 services:
+  issuer-rs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: issuer-rs
+    hostname: issuer-rs
+    container_name: issuer-rs
+    restart: unless-stopped
+    ports:
+      - "3213:3213"
+    # secrets:
+    #   - 
+    depends_on:
+      postgres:
+       condition: service_healthy 
+    profiles:
+      - deploy
+    networks:
+      - issuer-net
 
-  postgres_issuer:
-      container_name: postgres_issuer
-      image: postgres:latest
-      ports:
-        - "5433:5432"
-      volumes: 
-        - ./server/postgresdata:/var/lib/postgresql/data
-        - ./server/src/repository/sql/dbinit.sql:/docker-entrypoint-initdb.d/dbinit.sql
-      restart: always
-      environment:
-        POSTGRES_USER: postgres
-        POSTGRES_PASSWORD: issuer
-        POSTGRES_DB: identity
+  postgres:
+    container_name: postgres
+    hostname: postgres
+    image: postgres:latest
+    ports:
+      - "5433:5432"
+    volumes: 
+      - ./server/postgresdata:/var/lib/postgresql/data
+      - ./server/src/repository/sql/dbinit.sql:/docker-entrypoint-initdb.d/dbinit.sql
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: issuer
+      POSTGRES_DB: identity
+    profiles:
+      - dev
+      - deploy
+    networks:
+      - issuer-net
+networks:
+  issuer-net:
