@@ -13,16 +13,16 @@ services:
     # secrets:
     #   - 
     depends_on:
-      postgres:
+      issuer-postgres:
        condition: service_healthy 
     profiles:
       - deploy
     networks:
       - issuer-net
 
-  postgres:
-    container_name: postgres
-    hostname: postgres
+  issuer-postgres:
+    container_name: issuer-postgres
+    hostname: issuer-postgres
     image: postgres:latest
     ports:
       - "5433:5432"
@@ -44,5 +44,6 @@ services:
       - deploy
     networks:
       - issuer-net
+
 networks:
   issuer-net:
