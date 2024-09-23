@@ -77,10 +77,12 @@ async fn issue_credential (
     let vm = holder_document.resolve_method("#ethAddress", None).ok_or(IssuerError::EthMethodNotFound)?;
 
     vm.type_().to_string().eq("EcdsaSecp256k1RecoverySignature2020").then(|| Some(())).ok_or(IssuerError::InvalidVerificationMethodType)?;
-    let eth_addr = vm.properties()
-    .get("blockchainAccountId")
+    
+    let eth_addr = vm.data().custom()
+    .take_if(|method_data| {method_data.name == "blockchainAccountId"} )
     .ok_or(IssuerError::InvalidVerificationMethodType)?
-    .as_str().ok_or(IssuerError::InvalidVerificationMethodType)?
+    .data.as_str()
+    .ok_or(IssuerError::InvalidVerificationMethodType)?
     .strip_prefix("eip155:1:")
     .ok_or(IssuerError::InvalidVerificationMethodType)?;
 
