@@ -16,16 +16,16 @@ use ethers::signers::{LocalWallet, Signer};
 
 use clap::Parser;
 
-/// Connector command line arguments
+/// Issuer command line arguments
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// JSON RPC provider url
-    #[arg(short, long, required=true)]
+    #[arg(short, long, env, required=true)]
     rpc_provider: String,
 
     /// chain id
-    #[arg(short, long, required=true)]
+    #[arg(short, long, env, required=true)]
     chain_id: u64,
 }
 
