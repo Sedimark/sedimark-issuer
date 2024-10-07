@@ -14,7 +14,7 @@ RUN cargo install --path ./server
 # ---------------------------------------------------
 
 FROM alpine:latest
-RUN  apk add --no-cache musl-dev gcc libstdc++ libgcc libressl-dev
+RUN  apk add --no-cache gcc libgcc libressl-dev
 COPY --from=build /usr/local/cargo/bin/issuer /usr/local/bin/issuer
 EXPOSE 3213
 CMD [ "issuer" ]
