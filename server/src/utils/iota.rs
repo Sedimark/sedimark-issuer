@@ -8,10 +8,7 @@ use identity_stronghold::StrongholdStorage;
 use iota_sdk::{client::{secret::{stronghold::StrongholdSecretManager, SecretManager}, Client, node_api::indexer::query_parameters::QueryParameter, Password, api::GetAddressesOptions}, crypto::keys::bip39::Mnemonic, types::block::{address::Bech32Address, output::AliasOutput}};
 use std::env;
 use anyhow::{Result,Context};
-use reqwest;
 use serde_json::{self};
-use std::fs::File;
-use std::io::prelude::*;
 
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{credential::{Credential, Subject, CredentialBuilder, Jwt, JwtCredentialValidator, JwtCredentialValidationOptions, FailFast, DecodedJwtCredential}, core::{Url, Timestamp, FromJson, Duration, Object}, did::DID, storage::JwsSignatureOptions};
@@ -19,18 +16,11 @@ use serde_json::json;
 use ethers::core::types::U256;
 
 use crate::dtos::identity_dtos::CredentialSubject;
-use crate::{dtos::identity_dtos::AbiDTO, repository::{models::IssuerIdentity, operations::IssuerIdentityExt}};
+use crate::repository::{models::IssuerIdentity, operations::IssuerIdentityExt};
 
 
 pub type MemStorage = Storage<StrongholdStorage, StrongholdStorage>;
 
-// pub struct IotaState {
-//   pub client: Client,
-//   pub stronghold_storage: StrongholdStorage,
-//   pub key_storage: MemStorage,
-//   pub address: Bech32Address,
-//   pub faucet_url: String
-// }
 
 pub struct IotaState {
   pub client: Client,
@@ -42,14 +32,11 @@ pub struct IotaState {
 }
 
 impl IotaState {
-	pub async fn init(db_pool: &Pool) -> Result<Self> {
+	pub async fn init(db_pool: &Pool, node_url: String, faucet_url: String, key_storage_path: String, key_storage_password: String, key_storage_mnemonic: String) -> Result<Self> {
 
 		log::info!("Creating or recovering issuer state...");
 
 		let pg_client = &db_pool.get().await?;
-
-		let node_url = std::env::var("NODE_URL").expect("$NODE_URL must be set.");
-		let faucet_url = std::env::var("FAUCET_URL").expect("$FAUCET_URL must be set.");
 
 		let client = Client::builder()
 		.with_node(&node_url)?
@@ -57,7 +44,7 @@ impl IotaState {
 		.await?;
 
 		// Create or load issuer's identity.
-		let (key_storage, secret_manager) = create_or_recover_key_storage().await?;
+		let (key_storage, secret_manager) = create_or_recover_key_storage(key_storage_path, key_storage_password, key_storage_mnemonic).await?;
 		// check if a did already exists
 		let (issuer_identity, issuer_document ) = match pg_client.get_identity_did().await {
 			Ok(identity) => {
@@ -138,16 +125,16 @@ pub async fn create_did_document(
 
 
 
-pub async fn create_or_recover_key_storage() -> Result<(MemStorage, StrongholdStorage)> {
+pub async fn create_or_recover_key_storage(snapshot_path: String, password: String, mnemonic: String) -> Result<(MemStorage, StrongholdStorage)> {
   log::info!("Creating or recovering storage...");
 
   // Setup Stronghold secret_manager
   let stronghold = StrongholdSecretManager::builder()
-  .password(Password::from(std::env::var("KEY_STORAGE_STRONGHOLD_PASSWORD").unwrap()))
-  .build(&std::env::var("KEY_STORAGE_STRONGHOLD_SNAPSHOT_PATH").unwrap())?;
+  .password(Password::from(password))
+  .build(snapshot_path)?;
 
   // Only required the first time, can also be generated with `manager.generate_mnemonic()?`
-  let mnemonic = Mnemonic::from(std::env::var("KEY_STORAGE_MNEMONIC").unwrap());
+  let mnemonic = Mnemonic::from(mnemonic);
 
   match stronghold.store_mnemonic(mnemonic).await {
 	Ok(()) => log::info!("Stronghold mnemonic stored"),
@@ -228,48 +215,6 @@ pub async fn ensure_address_has_funds(client: &Client, address: &Bech32Address, 
   }
   Ok(())
 }
-
-
-
-
-
-
-
-
-
-
-pub async fn download_contract_abi_file() -> anyhow::Result<(), ()> {
-  dotenv::dotenv().ok();
-  let shimmer_evm_explorer: String = env::var("SHIMMER_EVM_EXPLORER").unwrap();
-  let contract_address = env::var("IDENTITY_SC_ADDRESS").unwrap();
-
-  let url = String::from(shimmer_evm_explorer + "/api?module=contract&action=getabi&address=" + &contract_address);
-  log::info!("Downloading ABI from {}", url);
-  let body = reqwest::get(url)
-	.await.unwrap()
-	.text()
-	.await.unwrap();
-
-  let mut file = File::create("../abi/identity_sc.json.").unwrap();
-  let correct_json: AbiDTO = serde_json::from_str(&body).unwrap();
-  file.write_all(correct_json.result.as_bytes()).unwrap();
-
-  Ok(())
-}
-
-// pub fn extract_pub_key_from_doc(did_doc: IotaDocument) -> Vec<u8> {
-//   did_doc.methods(Some(MethodScope::VerificationMethod))[0].data().try_decode().unwrap()
-// }
-
-// pub fn get_vc_id_from_credential(vc: Credential) -> i64 {
-//   let full_id = vc.id.unwrap();
-
-//   let split: Vec<&str> = full_id.as_str().split("/").collect();
-//   let id = split.get(split.len() - 1).unwrap().to_owned();
-//   let num: i64 = id.parse().unwrap();
-//   num
-// }
-
 
 pub async fn create_credential(
     holder_document: &IotaDocument, 
