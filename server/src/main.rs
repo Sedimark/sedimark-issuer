@@ -52,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     // Parse command line arguments
-    let args = Args::try_parse()?;
+    let args = Args::parse();
 
     let address = args.http_server_config.host_address;
     let port = args.http_server_config.host_port;
