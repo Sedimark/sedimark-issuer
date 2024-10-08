@@ -4,6 +4,7 @@
 
 use actix_cors::Cors;
 use actix_web::{http, middleware::Logger, web, App, HttpServer};
+#[cfg(debug_assertions)]
 use dotenv::dotenv;
 use ethers::middleware::SignerMiddleware;
 use ethers::providers::{Http, Provider};
@@ -46,6 +47,7 @@ struct Args {
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
+    #[cfg(debug_assertions)]
     dotenv().ok();
     env_logger::init();
 
