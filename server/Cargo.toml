@@ -34,6 +34,10 @@ async-trait = "0.1.79"
 zeroize="1.8.0"
 dotenv = "0.15.0"
 
+[profile.develop] #optimize iota sdk even in debug mode
+debug-assertions = true
+inherits = "release"
+
 [lib]
 name = "mediterraneus_issuer"
 path = "src/lib.rs"
