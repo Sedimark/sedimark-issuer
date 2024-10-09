@@ -65,10 +65,10 @@ async fn main() -> anyhow::Result<()> {
     let chain_id = args.dlt_config.chain_id;
 
     // Transactions will be signed with the private key below
-    let local_wallet = args
+    let local_wallet = ((&args
         .issuer_config
         .issuer_private_key
-        .value()
+        .value()))
         .parse::<LocalWallet>()?
         .with_chain_id(chain_id);
     let provider = Provider::<Http>::try_from(rpc_provider)?;
@@ -94,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(web::Data::new(db_pool.clone()))
             .app_data(signer_data.clone())
             .app_data(iota_state_data.clone())
+            .app_data(args.issuer_config.identity_sc_address.clone())
             .service(
                 web::scope("/api")
                     .configure(credentials_handler::scoped_config)

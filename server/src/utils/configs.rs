@@ -101,7 +101,7 @@ pub struct DLTConfig {
 pub struct IssuerConfig {
     /// Issuer Smart Contract address
     #[arg(long, env, required = true)]
-    pub identity_sc_address: ConfigSecret,
+    pub identity_sc_address: String,
     /// Issuer private key address
     #[arg(long, env, required = true)]
     pub issuer_private_key: ConfigSecret,
