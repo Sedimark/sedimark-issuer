@@ -2,23 +2,23 @@
 # 1 - Build Stage
 # ---------------------------------------------------
 
-FROM rustlang/rust:nightly-alpine AS build
-WORKDIR /usr/src/app
-COPY . .
+FROM rust:1.81-alpine AS issuer-build
+WORKDIR /app
+COPY ./server .
+COPY ./smart-contracts /smart-contracts
 RUN  apk add --no-cache make musl-dev clang llvm gcc libc-dev clang-dev binutils g++ linux-headers libstdc++ libgcc libressl-dev
-ENV RUSTFLAGS="-C target-feature=-crt-static"
-RUN cd abigen  \ 
-    && cargo run -- --contract Identity --abi-source "../smart-contracts/Identity.json" \
-    && cd ..
-RUN cargo install --path ./server
+# Since the cache is unmounted, I need to move the generated executable in another place
+RUN --mount=type=cache,target=/app/target/ \
+    --mount=type=cache,target=/usr/local/cargo/git/db \
+    --mount=type=cache,target=/usr/local/cargo/registry/ \
+    cargo build --release && \
+    cp target/release/issuer /app/issuer
 
 # ---------------------------------------------------
 # 2 - Deploy Stage
 # ---------------------------------------------------
 
 FROM alpine:latest
-RUN  apk add --no-cache make musl-dev clang llvm gcc libc-dev clang-dev binutils g++ linux-headers libstdc++ libgcc libressl-dev
-COPY --from=build /usr/local/cargo/bin/issuer /usr/local/bin/issuer
-COPY --from=build /usr/src/app/server/.env /.env
+COPY --from=issuer-build /app/issuer /usr/local/bin/issuer
 EXPOSE 3213
-CMD [ "issuer" , "--rpc-provider", "https://json-rpc.evm.testnet.shimmer.network", "--chain-id" , "1073" ] 
+CMD issuer
