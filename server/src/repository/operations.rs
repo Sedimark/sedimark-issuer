@@ -19,7 +19,7 @@ pub trait IssuerIdentityExt {
 
 #[async_trait]
 pub trait HoldersChallengesExt {
-    async fn get_challenge(&self, did: &String) -> Result<HolderChallenge, IssuerError>;
+    async fn get_challenge(&self, did: &String, nonce: &String) -> Result<HolderChallenge, IssuerError>;
     async fn insert_challenge(&self, holder_challenge: &HolderChallenge) -> Result<HolderChallenge, IssuerError>;
     async fn remove_challenge(&self, did: &String) ->  Result<(), IssuerError>;
 }
@@ -65,14 +65,14 @@ impl IssuerIdentityExt for PostgresClient {
 #[async_trait]
 impl HoldersChallengesExt for PostgresClient {
 
-    async fn get_challenge(&self, did: &String) -> Result<HolderChallenge, IssuerError> {
+    async fn get_challenge(&self, did: &String, nonce: &String) -> Result<HolderChallenge, IssuerError> {
 
         let _stmt = include_str!("./sql/holders_challenges_get.sql");
         let _stmt = _stmt.replace("$table_fields", &HolderChallenge::sql_table_fields());
         let stmt = self.prepare(&_stmt).await?;
 
         match self
-        .query_one(&stmt, &[did])
+        .query_one(&stmt, &[did, nonce])
         .await{
             Ok(row) => HolderChallenge::from_row_ref(&row).map_err(|e| IssuerError::from(e)),
             Err(_) =>  Err(IssuerError::RowNotFound),

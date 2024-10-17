@@ -4,4 +4,5 @@
 
 SELECT $table_fields 
 FROM holders_challenges 
-WHERE did_holder=$1;
+WHERE did_holder=$1
+AND challenge=$2;
