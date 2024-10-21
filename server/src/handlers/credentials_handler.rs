@@ -47,7 +47,7 @@ async fn issue_credential (
 
     //check challenge expiration
     let expiration = Timestamp::from_str(&holder_request.expiration)
-        .map_err(|_| {IssuerError::OtherError("ill formatted timestamp from database".to_owned())})?;
+        .map_err(|_| {IssuerError::OtherError("Ill formatted timestamp from database".to_owned())})?;
 
     // guard the code returning early if the challenge is expired
     if Timestamp::now_utc() > expiration {
@@ -79,7 +79,7 @@ async fn issue_credential (
         &iota_state.key_storage,
         &iota_state.issuer_identity.fragment,
         credential_request.credential_subject
-    ).await.map_err(|_| IssuerError::OtherError("Conversion error".to_owned()))?;
+    ).await.map_err(|e| IssuerError::OtherError(format!("Conversion error: {}", e.to_string())))?;
 
     // Verify the EOA ownership
     log::info!("Wallet sign: {:?}", credential_request.wallet_signature);

@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use anyhow::anyhow;
 use async_trait::async_trait;
 use deadpool_postgres::Client as PostgresClient;
+use identity_iota::core::Timestamp;
 use tokio_pg_mapper::FromTokioPostgresRow;
 
 use crate::{repository::models::IssuerIdentity, errors::IssuerError};
@@ -22,6 +24,7 @@ pub trait HoldersChallengesExt {
     async fn get_challenge(&self, did: &String, nonce: &String) -> Result<HolderChallenge, IssuerError>;
     async fn insert_challenge(&self, holder_challenge: &HolderChallenge) -> Result<HolderChallenge, IssuerError>;
     async fn remove_challenge(&self, did: &String) ->  Result<(), IssuerError>;
+    async fn cleanup_challenges(&self) -> Result<(), anyhow::Error>;
 }
 
 #[async_trait]
@@ -106,6 +109,16 @@ impl HoldersChallengesExt for PostgresClient {
         let stmt = self.prepare(&_stmt).await?;
 
         self.query(&stmt, &[did]).await?;
+        Ok(())
+    }
+
+    async fn cleanup_challenges(&self) -> Result<(), anyhow::Error> {
+        let _stmt = include_str!("./sql/holders_challenges_cleanup.sql");
+        let stmt = self.prepare(&_stmt).await?;
+
+        self.query(&stmt, &[&Timestamp::now_utc().to_rfc3339()]).await
+            .map_err(|e| anyhow!("SQL Query delete failed: {}", e.to_string()))?;
+
         Ok(())
     }
 }
