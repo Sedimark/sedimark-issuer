@@ -16,7 +16,7 @@ use super::operations::HoldersChallengesExt;
 /// Clean challenges from the database every hour
 async fn cleanup_loop(pool: Pool)
 {   
-    let mut interval = tokio::time::interval(Duration::from_secs(60));
+    let mut interval = tokio::time::interval(Duration::from_secs(3600));
     if let Ok(client) = pool.get().await {
         loop
         {
