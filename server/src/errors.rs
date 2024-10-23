@@ -12,6 +12,8 @@ pub enum IssuerError {
     // Services Errors
     #[error("Client has still a pending request")]
     ChallengePendingError,
+    #[error("Challenge expired")]
+    ChallengeExpired,
     #[error("Invalid or pending request")]
     InvalidOrPendingRequestError,
     #[error("Holder request does not exist")]
@@ -71,6 +73,7 @@ impl ResponseError for IssuerError {
     fn status_code(&self) -> StatusCode {
         match *self {
             IssuerError::ChallengePendingError => StatusCode::TOO_MANY_REQUESTS,
+            IssuerError::ChallengeExpired => StatusCode::GONE,
             IssuerError::InvalidOrPendingRequestError => StatusCode::BAD_REQUEST,
             IssuerError::NonExistingRequestError => StatusCode::NOT_FOUND,
             IssuerError::InvalidIdentitySignatureError => StatusCode::BAD_REQUEST,

@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use anyhow::anyhow;
 use async_trait::async_trait;
 use deadpool_postgres::Client as PostgresClient;
+use identity_iota::core::Timestamp;
 use tokio_pg_mapper::FromTokioPostgresRow;
 
 use crate::{repository::models::IssuerIdentity, errors::IssuerError};
@@ -19,9 +21,10 @@ pub trait IssuerIdentityExt {
 
 #[async_trait]
 pub trait HoldersChallengesExt {
-    async fn get_challenge(&self, did: &String) -> Result<HolderChallenge, IssuerError>;
+    async fn get_challenge(&self, did: &String, nonce: &String) -> Result<HolderChallenge, IssuerError>;
     async fn insert_challenge(&self, holder_challenge: &HolderChallenge) -> Result<HolderChallenge, IssuerError>;
     async fn remove_challenge(&self, did: &String) ->  Result<(), IssuerError>;
+    async fn cleanup_challenges(&self) -> Result<(), anyhow::Error>;
 }
 
 #[async_trait]
@@ -65,14 +68,14 @@ impl IssuerIdentityExt for PostgresClient {
 #[async_trait]
 impl HoldersChallengesExt for PostgresClient {
 
-    async fn get_challenge(&self, did: &String) -> Result<HolderChallenge, IssuerError> {
+    async fn get_challenge(&self, did: &String, nonce: &String) -> Result<HolderChallenge, IssuerError> {
 
         let _stmt = include_str!("./sql/holders_challenges_get.sql");
         let _stmt = _stmt.replace("$table_fields", &HolderChallenge::sql_table_fields());
         let stmt = self.prepare(&_stmt).await?;
 
         match self
-        .query_one(&stmt, &[did])
+        .query_one(&stmt, &[did, nonce])
         .await{
             Ok(row) => HolderChallenge::from_row_ref(&row).map_err(|e| IssuerError::from(e)),
             Err(_) =>  Err(IssuerError::RowNotFound),
@@ -106,6 +109,16 @@ impl HoldersChallengesExt for PostgresClient {
         let stmt = self.prepare(&_stmt).await?;
 
         self.query(&stmt, &[did]).await?;
+        Ok(())
+    }
+
+    async fn cleanup_challenges(&self) -> Result<(), anyhow::Error> {
+        let _stmt = include_str!("./sql/holders_challenges_cleanup.sql");
+        let stmt = self.prepare(&_stmt).await?;
+
+        self.query(&stmt, &[&Timestamp::now_utc().to_rfc3339()]).await
+            .map_err(|e| anyhow!("SQL Query delete failed: {}", e.to_string()))?;
+
         Ok(())
     }
 }

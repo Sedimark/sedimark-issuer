@@ -8,7 +8,7 @@ CREATE TABLE identities (
 );
 
 CREATE TABLE holders_challenges (
-    did_holder          TEXT PRIMARY KEY,
+    did_holder          TEXT NOT NULL,
     challenge           TEXT NOT NULL,
     expiration			TEXT NOT NULL
 );

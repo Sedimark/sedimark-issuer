@@ -21,4 +21,4 @@ RUN --mount=type=cache,target=/app/target/ \
 FROM alpine:latest
 COPY --from=issuer-build /app/issuer /usr/local/bin/issuer
 EXPOSE 3213
-CMD issuer
+CMD ["issuer"]

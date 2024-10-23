@@ -14,6 +14,7 @@ use ethers::core::types::U256;
 use ethers::types::{Address, Signature};
 
 use identity_eddsa_verifier::EdDSAJwsVerifier;
+use identity_iota::core::Timestamp;
 use identity_iota::credential::Jws;
 use identity_iota::document::verifiable::JwsVerificationOptions;
 use identity_iota::iota::{IotaDID, IotaIdentityClientExt};
@@ -41,8 +42,17 @@ async fn issue_credential (
     let credential_request = req_body.into_inner();
     let pg_client = &pool.get().await?;
     // read the request from the DB 
-    let holder_request = pg_client.get_challenge(&credential_request.did).await?;
+    let holder_request = pg_client.get_challenge(&credential_request.did, &credential_request.nonce).await?;
     log::info!("{:?}", holder_request);
+
+    //check challenge expiration
+    let expiration = Timestamp::from_str(&holder_request.expiration)
+        .map_err(|_| {IssuerError::OtherError("Ill formatted timestamp from database".to_owned())})?;
+
+    // guard the code returning early if the challenge is expired
+    if Timestamp::now_utc() > expiration {
+        return Err(IssuerError::ChallengeExpired)
+    }
 
     // resolve DID Doc and extract public key
     let holder_document = iota_state.client.resolve_did(&IotaDID::parse(holder_request.did_holder)?).await?;
@@ -69,7 +79,7 @@ async fn issue_credential (
         &iota_state.key_storage,
         &iota_state.issuer_identity.fragment,
         credential_request.credential_subject
-    ).await.map_err(|_| IssuerError::OtherError("Conversion error".to_owned()))?;
+    ).await.map_err(|e| IssuerError::OtherError(format!("Conversion error: {}", e.to_string())))?;
 
     // Verify the EOA ownership
     log::info!("Wallet sign: {:?}", credential_request.wallet_signature);

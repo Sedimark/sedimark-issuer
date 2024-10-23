@@ -45,6 +45,7 @@ struct Args {
     database_config: DatabaseConfig,
 }
 
+
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
     #[cfg(debug_assertions)]
@@ -94,7 +95,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(web::Data::new(db_pool.clone()))
             .app_data(signer_data.clone())
             .app_data(iota_state_data.clone())
-            .app_data(args.issuer_config.identity_sc_address.clone())
+            .app_data(web::Data::new(args.issuer_config.identity_sc_address.clone()))
             .service(
                 web::scope("/api")
                     .configure(credentials_handler::scoped_config)
