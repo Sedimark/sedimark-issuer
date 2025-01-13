@@ -1,27 +1,27 @@
 version: '3.9'
 services:
-  issuer-rs:
+  mediterraneus-issuer-rs:
     build:
       context: .
       dockerfile: Dockerfile
-    image: issuer-rs
-    hostname: issuer-rs
-    container_name: issuer-rs
+    image: mediterraneus-issuer-rs
+    hostname: mediterraneus-issuer-rs
+    container_name: mediterraneus-issuer-rs
     restart: unless-stopped
     ports:
       - "3213:3213"
     env_file: ./server/.env
     depends_on:
-      issuer-postgres:
+      mediterraneus-issuer-postgres:
        condition: service_healthy 
     profiles:
       - deploy
     networks:
       - issuer-net
 
-  issuer-postgres:
-    container_name: issuer-postgres
-    hostname: issuer-postgres
+  mediterraneus-issuer-postgres:
+    container_name: mediterraneus-issuer-postgres
+    hostname: mediterraneus-issuer-postgres
     image: postgres:latest
     ports:
       - "5433:5432"
