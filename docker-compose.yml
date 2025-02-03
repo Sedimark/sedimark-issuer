@@ -8,6 +8,8 @@ services:
     hostname: mediterraneus-issuer-rs
     container_name: mediterraneus-issuer-rs
     restart: unless-stopped
+    volumes:
+      - ./docker_data:/data
     ports:
       - "3213:3213"
     env_file: ./server/.env
@@ -18,11 +20,13 @@ services:
       - deploy
     networks:
       - issuer-net
+    logging:
+      driver: "local"
 
   mediterraneus-issuer-postgres:
     container_name: mediterraneus-issuer-postgres
     hostname: mediterraneus-issuer-postgres
-    image: postgres:latest
+    image: postgres:16
     ports:
       - "5433:5432"
     volumes: 
@@ -43,6 +47,8 @@ services:
       - deploy
     networks:
       - issuer-net
+    logging:
+      driver: "local"
 
 networks:
   issuer-net:
