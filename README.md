@@ -1,1 +1,77 @@
+### Docker compose example
+```yaml
+services:
+  sedimark-issuer-rs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: sedimark-issuer-rs
+    hostname: sedimark-issuer-rs
+    container_name: sedimark-issuer-rs
+    restart: unless-stopped
+    volumes:
+      - ./docker_data:/data
+    ports:
+      - "3213:3213"
+    depends_on:
+      sedimark-issuer-postgres:
+       condition: service_healthy 
+    networks:
+      - dlt-booth-net
+    logging:
+      driver: "local"
+    environment:
+      # Rust flags
+      RUST_BACKTRACE: 1
+      RUST_LOG: debug
+      # HTTP SERVER SETUP
+      HOST_ADDRESS: 0.0.0.0
+      HOST_PORT: 3213
+      # DLT CONFIG
+      NODE_URL: https://stardust.unican.sedimark.eu
+      FAUCET_API_ENDPOINT: https://faucet.tangle.stardust.linksfoundation.com/api/enqueue
+      RPC_PROVIDER: https://stardust.unican.sedimark.eu/sedimark-chain
+      CHAIN_ID: 1074
+      ISSUER_URL: http://sedimark-issuer-rs:3213/api/credentials/
+      # KEY STORAGE CONFIGURATION
+      KEY_STORAGE_STRONGHOLD_SNAPSHOT_PATH: ./key_storage.stronghold
+      KEY_STORAGE_STRONGHOLD_PASSWORD: some_hopefully_secure_password
+      KEY_STORAGE_MNEMONIC: strategy exercise globe absent hill help demand mistake rival report fame owner drift treat gather gospel anxiety limb tribe exhaust october foil title account
+      # ISSUER CONFIG
+      ISSUER_PRIVATE_KEY: issuer_private key
+      IDENTITY_SC_ADDRESS: sc_address
+      # DATABASE CONNECTION CONFIG
+      DB_USER: postgres
+      DB_PASSWORD: issuer
+      DB_NAME: identity
+      DB_HOST: sedimark-issuer-postgres
+      DB_PORT: 5432
+      DB_MAX_POOL_SIZE: 16
+  sedimark-issuer-postgres:
+    container_name: sedimark-issuer-postgres
+    hostname: sedimark-issuer-postgres
+    image: postgres:16
+    ports:
+      - "5433:5432"
+    volumes: 
+      - ./server/postgresdata:/var/lib/postgresql/data
+      - ./server/src/repository/sql/dbinit.sql:/docker-entrypoint-initdb.d/dbinit.sql
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: issuer
+      POSTGRES_DB: identity
+    networks:
+      - dlt-booth-net
+    logging:
+      driver: "local"
 
+networks:
+  dlt-booth-net:
+    external: true
+```
