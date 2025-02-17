@@ -36,6 +36,5 @@ pub struct CredentialIssuedResponse {
 #[derive(Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialSubject {
-    pub name: String,
-    pub surname: String
+    pub alternate_name: String
 }

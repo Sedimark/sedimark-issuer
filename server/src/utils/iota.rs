@@ -2,13 +2,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+
 use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
-use identity_iota::{
-    iota::{IotaClientExt, IotaDID, IotaIdentityClientExt, NetworkName},
-    prelude::IotaDocument,
-    storage::{JwkDocumentExt, JwkMemStore, Storage},
-    verification::{jws::JwsAlgorithm, MethodScope},
+use identity_iota::{iota::{IotaClientExt, IotaDID, IotaIdentityClientExt, NetworkName}, prelude::IotaDocument, storage::{JwkDocumentExt, JwkMemStore, Storage}, verification::{jws::JwsAlgorithm, MethodScope}
 };
 use identity_stronghold::StrongholdStorage;
 use iota_sdk::{
@@ -23,7 +20,6 @@ use iota_sdk::{
 };
 use serde_json::{self};
 
-use ethers::core::types::U256;
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::{
     core::{Duration, FromJson, Object, Timestamp, Url},
@@ -279,24 +275,26 @@ pub async fn ensure_address_has_funds(
 pub async fn create_credential(
     holder_document: &IotaDocument,
     issuer_document: &IotaDocument,
-    vc_id: U256,
+    vc_id: Url,
     storage_issuer: &MemStorage,
     fragment_issuer: &String,
     credential_subject: CredentialSubject,
 ) -> Result<(Jwt, DecodedJwtCredential)> {
-    // Create a credential subject // TODO: fill this from user request
-    let subject: Subject = Subject::from_json_value(json!({
-        "id": holder_document.id().as_str(),
-        "name": credential_subject.name,
-        "surname": credential_subject.surname,
-        "userOf": "SEDIMARK marketplace"
-    }))?;
+
+    // Create a credential subject
+    let subject = json!({
+        "@context": "http://schema.org/",
+        "id": holder_document.id().to_string(),
+        "alternateName": credential_subject.alternate_name,
+        "memberOf": "SEDIMARK marketplace"
+    });
+
+    let subject = Subject::from_json_value(subject)?;
 
     // Build credential using subject above and issuer.
-    let credential_base_url = "https://example.market/credentials/"; //TODO: define a uri
 
     let credential: Credential = CredentialBuilder::default()
-        .id(Url::parse(format!("{}{}", credential_base_url, vc_id))?)
+        .id(vc_id)
         .issuer(Url::parse(issuer_document.id().as_str())?)
         .type_("MarketplaceCredential") // TODO: define a type somewhere else
         .expiration_date(
@@ -307,7 +305,6 @@ pub async fn create_credential(
         .issuance_date(Timestamp::now_utc().checked_sub(Duration::days(1)).unwrap()) //TODO: this solved an error with the eth node time
         .subject(subject)
         .build()?;
-
     // Sign the credential
     let credential_jwt: Jwt = issuer_document
         .create_credential_jwt(

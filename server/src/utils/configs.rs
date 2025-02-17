@@ -5,6 +5,7 @@
 use std::{convert::Infallible, str::FromStr};
 
 use clap::Args;
+use identity_iota::core::Url;
 use zeroize::ZeroizeOnDrop;
 
 /// Simple configuration of a generic secret read from Args.
@@ -100,13 +101,19 @@ pub struct DLTConfig {
     pub faucet_api_endpoint: String,
 }
 
+pub type IssuerUrl = Url;
+pub type IdentityScAddress = String;
 /// Issuer parameters configuration
 #[derive(Debug, Args)]
 pub struct IssuerConfig {
     /// Issuer Smart Contract address
     #[arg(long, env, required = true)]
-    pub identity_sc_address: String,
+    pub identity_sc_address: IdentityScAddress,
     /// Issuer private key address
     #[arg(long, env, required = true)]
     pub issuer_private_key: ConfigSecret,
+    /// Issuer base URL
+    #[arg(long, env, required = true)]
+    pub issuer_url: IssuerUrl
 }
+

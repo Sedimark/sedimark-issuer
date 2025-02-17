@@ -55,8 +55,8 @@ async fn main() -> anyhow::Result<()> {
     // Parse command line arguments
     let args = Args::parse();
 
-    let address = args.http_server_config.host_address;
-    let port = args.http_server_config.host_port;
+    let address = args.http_server_config.host_address.to_owned();
+    let port = args.http_server_config.host_port.to_owned();
 
     // Initialize database connection pool
     let db_pool = init(args.database_config).await?;
@@ -96,6 +96,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(signer_data.clone())
             .app_data(iota_state_data.clone())
             .app_data(web::Data::new(args.issuer_config.identity_sc_address.clone()))
+            .app_data(web::Data::new(args.issuer_config.issuer_url.clone()))
             .service(
                 web::scope("/api")
                     .configure(credentials_handler::scoped_config)
