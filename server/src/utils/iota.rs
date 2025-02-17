@@ -283,16 +283,16 @@ pub async fn create_credential(
 
     // Create a credential subject
     let subject = json!({
-        "@context": "http://schema.org/",
         "id": holder_document.id().to_string(),
-        "alternateName": credential_subject.alternate_name,
-        "memberOf": "SEDIMARK marketplace"
+        "schema:alternateName": credential_subject.alternate_name,
+        "schema:memberOf": "SEDIMARK marketplace"
     });
 
     let subject = Subject::from_json_value(subject)?;
 
+    let mut schema = Object::new();
+    schema.insert("schema".to_owned(), serde_json::Value::String("http://schema.org/".to_owned()));
     // Build credential using subject above and issuer.
-
     let credential: Credential = CredentialBuilder::default()
         .id(vc_id)
         .issuer(Url::parse(issuer_document.id().as_str())?)
@@ -304,6 +304,7 @@ pub async fn create_credential(
         ) // TODO: define this as a parameter
         .issuance_date(Timestamp::now_utc().checked_sub(Duration::days(1)).unwrap()) //TODO: this solved an error with the eth node time
         .subject(subject)
+        .context(identity_iota::core::Context::Obj(schema))
         .build()?;
     // Sign the credential
     let credential_jwt: Jwt = issuer_document
