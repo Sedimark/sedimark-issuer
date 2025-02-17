@@ -1,31 +1,31 @@
 version: '3.9'
 services:
-  mediterraneus-issuer-rs:
+  sedimark-issuer-rs:
     build:
       context: .
       dockerfile: Dockerfile
-    image: mediterraneus-issuer-rs
-    hostname: mediterraneus-issuer-rs
-    container_name: mediterraneus-issuer-rs
+    image: sedimark-issuer-rs
+    hostname: sedimark-issuer-rs
+    container_name: sedimark-issuer-rs
     restart: unless-stopped
     volumes:
       - ./docker_data:/data
     ports:
       - "3213:3213"
-    env_file: ./server/.env
+    env_file: .env
     depends_on:
-      mediterraneus-issuer-postgres:
+      sedimark-issuer-postgres:
        condition: service_healthy 
     profiles:
       - deploy
     networks:
-      - issuer-net
+      - dlt-booth-net
     logging:
       driver: "local"
 
-  mediterraneus-issuer-postgres:
-    container_name: mediterraneus-issuer-postgres
-    hostname: mediterraneus-issuer-postgres
+  sedimark-issuer-postgres:
+    container_name: sedimark-issuer-postgres
+    hostname: sedimark-issuer-postgres
     image: postgres:16
     ports:
       - "5433:5432"
@@ -46,9 +46,10 @@ services:
       - dev
       - deploy
     networks:
-      - issuer-net
+      - dlt-booth-net
     logging:
       driver: "local"
 
 networks:
-  issuer-net:
+  dlt-booth-net:
+    external: true
