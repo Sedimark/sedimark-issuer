@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: ${ISSUER_APP_NAME}-postgres
+  name: ${ISSUER_APP_NAME}-postgres
+  namespace: ${ISSUER_NAMESPACE}
+spec:
+  selector:
+    matchLabels:
+      app: ${ISSUER_APP_NAME}-postgres
+  serviceName: ${ISSUER_APP_NAME}-postgres
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ${ISSUER_APP_NAME}-postgres
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: ${ISSUER_APP_NAME}-postgres
+          image: postgres:${ISSUER_POSTGRES_IMAGETAG}
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: ${ISSUER_APP_NAME}-postgres-config
+            - secretRef:
+                name: ${ISSUER_APP_NAME}-postgres-secret
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - exec pg_isready -U $ISSUER_DB_USER -d identity
+            failureThreshold: 6
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 5
+          ports:
+            - containerPort: 5432
+              name: postgres
+          resources: {}
+          volumeMounts:
+            - name: ${ISSUER_APP_NAME}-postgres-data
+              mountPath: "/var/lib/postgresql"
+            - name: ${ISSUER_APP_NAME}-postgres-init
+              mountPath: /docker-entrypoint-initdb.d
+      restartPolicy: Always
+      volumes:
+        - name: ${ISSUER_APP_NAME}-postgres-data
+          persistentVolumeClaim:
+            claimName: ${ISSUER_APP_NAME}-postgres-data
+        - name: ${ISSUER_APP_NAME}-postgres-init
+          configMap:
+            name: ${ISSUER_APP_NAME}-postgres-init
+            items:
+              - key: dbinit.sql
+                path: dbinit.sql
+---
+

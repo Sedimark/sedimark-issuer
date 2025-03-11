@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${ISSUER_APP_NAME}-data
+  namespace: ${ISSUER_NAMESPACE}
+spec:
+  storageClassName: ${STORAGECLASS}
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+

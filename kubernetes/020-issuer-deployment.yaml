@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: ${ISSUER_APP_NAME}
+  name: ${ISSUER_APP_NAME}
+  namespace: ${ISSUER_NAMESPACE}
+spec:
+  selector:
+    matchLabels:
+      app: ${ISSUER_APP_NAME}
+  replicas: 1
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: ${ISSUER_APP_NAME}
+    spec:
+      imagePullSecrets:
+      - name: docker-registry
+      nodeSelector: {}
+      initContainers:
+      - name: check-db-ready
+        image: postgres:${ISSUER_POSTGRES_IMAGETAG}
+        imagePullPolicy: IfNotPresent
+        command:
+          - /bin/sh
+          - -c
+          - |-
+            until pg_isready -h ${ISSUER_APP_NAME}-postgres.${ISSUER_NAMESPACE}.svc.cluster.local -U ${ISSUER_DB_USER} -d identity -p 5432; do
+              echo "Waiting for PostgreSQL to be ready..."
+              sleep 5
+            done
+        envFrom:
+          - configMapRef:
+              name: ${ISSUER_APP_NAME}-postgres-config
+          - secretRef:
+              name: ${ISSUER_APP_NAME}-postgres-secret
+      containers:
+        - image: ${ISSUER_DOCKER_IMAGE}:${ISSUER_IMAGETAG}
+          imagePullPolicy: Always
+          name: ${ISSUER_APP_NAME}
+          envFrom:
+          - configMapRef:
+              name: ${ISSUER_APP_NAME}-config
+          - secretRef:
+              name: ${ISSUER_APP_NAME}-secret
+          ports:
+            - containerPort: 3213
+              name: api
+          resources: {}
+          volumeMounts:
+            - name: ${ISSUER_APP_NAME}-data
+              mountPath: "/data"
+      restartPolicy: Always
+      volumes:
+        - name: ${ISSUER_APP_NAME}-data
+          persistentVolumeClaim:
+            claimName: ${ISSUER_APP_NAME}-data
+---
+
