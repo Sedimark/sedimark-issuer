@@ -88,7 +88,7 @@ To deploy the issuer in a Kubernetes cluster, first set the necessary environmen
 | ISSUER_NODE_URL                        | URL for the blockchain node                   | https://stardust.unican.sedimark.eu                                                        | No     |
 | ISSUER_FAUCET_API_ENDPOINT             | API endpoint for the blockchain faucet        | https://faucet.tangle.stardust.linksfoundation.com/api/enqueue                             | No     |
 | ISSUER_RPC_PROVIDER                    | RPC provider URL for blockchain               | https://stardust.unican.sedimark.eu/sedimark-chain                                         | No     |
-| ISSUER_CHAIN_ID                        | Blockchain network ID                         | 1111                                                                                       | No     |
+| ISSUER_CHAIN_ID                        | Blockchain network ID                         | 1074                                                                                       | No     |
 | ISSUER_DB_USER                         | Database username                             | postgres                                                                                   | No     |
 | ISSUER_DB_PASSWORD                     | Database password                             | issuer                                                                                     | Yes    |
 | ISSUER_DOCKER_REGISTRY_CREDENTIALS     | Base64 encoded Docker registry credentials    | {"auths":{"registry.example.com":{"username":"user","password":"pass"}}}                   | Yes    |
