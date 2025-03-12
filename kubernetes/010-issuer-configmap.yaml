@@ -18,7 +18,7 @@ data:
   CHAIN_ID: "${ISSUER_CHAIN_ID}"
 
   # ISSUER CONFIG
-  ISSUER_URL: "http://${ISSUER_APP_NAME}.${ISSUER_NAMESPACE}.svc.cluster.local:3213/api/credentials/"
+  ISSUER_URL: "http://${ISSUER_APP_NAME}.${ISSUER_NAMESPACE}.svc.cluster.local:3213"
 
   # DATABASE CONNECTION CONFIG
   DB_NAME: "identity"
