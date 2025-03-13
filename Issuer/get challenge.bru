@@ -1,0 +1,23 @@
+meta {
+  name: get challenge
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{ISSUER_URL}}/challenges?did={{did}}
+  body: none
+  auth: none
+}
+
+params:query {
+  did: {{did}}
+}
+
+vars:pre-request {
+  nonce: 
+}
+
+vars:post-response {
+  nonce: 
+}
