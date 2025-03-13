@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${ISSUER_APP_NAME}-postgres-config
+  namespace: ${ISSUER_NAMESPACE}
+  labels:
+    app: ${ISSUER_APP_NAME}-postgres
+data:
+  POSTGRES_DB: "identity"
+  POSTGRES_USER: ${ISSUER_DB_USER}
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${ISSUER_APP_NAME}-postgres-init
+  namespace: ${ISSUER_NAMESPACE}
+  labels:
+    app: ${ISSUER_APP_NAME}-postgres
+data:
+  dbinit.sql: |
+    CREATE TABLE identities (
+        did text PRIMARY KEY,
+        fragment text NOT NULL
+    );
+    CREATE TABLE holders_challenges (
+        did_holder          TEXT NOT NULL,
+        challenge           TEXT NOT NULL,
+        expiration			TEXT NOT NULL
+    );
+---
+

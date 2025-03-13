@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: ${ISSUER_APP_NAME}
+  name: ${ISSUER_APP_NAME}
+  namespace: ${ISSUER_NAMESPACE}
+spec:
+  type: ClusterIP
+  ports:
+    - name: "api"
+      port: 3213
+      targetPort: 3213
+  selector:
+    app: ${ISSUER_APP_NAME}
+---
+
