@@ -2,4 +2,4 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// pub mod ver_presentation_jwt;
+pub mod ver_presentation_jwt;

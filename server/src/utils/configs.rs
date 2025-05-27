@@ -4,7 +4,7 @@
 
 use std::{convert::Infallible, str::FromStr};
 
-use clap::Args;
+use clap::{Args, Subcommand};
 use identity_iota::core::Url;
 use zeroize::ZeroizeOnDrop;
 
@@ -117,3 +117,9 @@ pub struct IssuerConfig {
     pub issuer_url: IssuerUrl
 }
 
+#[derive(Debug, Subcommand)]
+pub enum Commands {
+    Revoke {
+        credential: i64
+    }
+}
