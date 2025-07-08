@@ -1,3 +1,7 @@
-use ethers::contract::abigen;
+use alloy::sol;
 
-abigen!(Identity, "../smart-contracts/Identity.json");
+sol!(
+    #[sol(rpc)]
+    Identity,
+    "../smart-contracts/Identity.json"
+);
