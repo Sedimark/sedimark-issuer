@@ -5,7 +5,6 @@
 use std::{convert::Infallible, str::FromStr};
 
 use clap::Args;
-use identity_iota::core::Url;
 use zeroize::ZeroizeOnDrop;
 
 /// Simple configuration of a generic secret read from Args.
@@ -86,7 +85,7 @@ pub struct HttpServerConfig {
 pub struct DLTConfig {
     /// JSON RPC provider url
     #[arg(long, env, required = true)]
-    pub rpc_provider: String,
+    pub rpc_provider: identity_iota::core::Url,
 
     /// Chain id
     #[arg(long, env, required = true)]
@@ -101,7 +100,7 @@ pub struct DLTConfig {
     pub faucet_api_endpoint: String,
 }
 
-pub type IssuerUrl = Url;
+pub type IssuerUrl = identity_iota::core::Url;
 pub type IdentityScAddress = String;
 /// Issuer parameters configuration
 #[derive(Debug, Args)]

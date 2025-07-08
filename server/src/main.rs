@@ -2,21 +2,23 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::ops::Deref;
+
 use actix_cors::Cors;
 use actix_web::{http, middleware::Logger, web, App, HttpServer};
+use alloy::network::Ethereum;
+use alloy::providers::{DynProvider, ProviderBuilder};
+use alloy::signers::local::PrivateKeySigner;
 #[cfg(debug_assertions)]
 use dotenv::dotenv;
-use ethers::middleware::SignerMiddleware;
-use ethers::providers::{Http, Provider};
-use ethers::signers::{LocalWallet, Signer};
+
 use mediterraneus_issuer::handlers::{challenges_handler, credentials_handler};
 use mediterraneus_issuer::repository::postgres_repo::init;
 use mediterraneus_issuer::utils::configs::{
     DLTConfig, DatabaseConfig, HttpServerConfig, IssuerConfig, KeyStorageConfig,
 };
-use mediterraneus_issuer::utils::eth::SignerMiddlewareShort;
+
 use mediterraneus_issuer::utils::iota::IotaState;
-use std::sync::Arc;
 
 use clap::Parser;
 
@@ -63,20 +65,15 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize provider
     let rpc_provider = &args.dlt_config.rpc_provider;
-    let chain_id = args.dlt_config.chain_id;
 
     // Transactions will be signed with the private key below
-    let local_wallet = ((&args
-        .issuer_config
-        .issuer_private_key
-        .value()))
-        .parse::<LocalWallet>()?
-        .with_chain_id(chain_id);
-    let provider = Provider::<Http>::try_from(rpc_provider)?;
+    let signer = args.issuer_config.issuer_private_key.value().parse::<PrivateKeySigner>()?;
+    let provider = ProviderBuilder::new()
+        .wallet(signer)
+        .connect_http(rpc_provider.deref().clone());
+    let provider = DynProvider::<Ethereum>::new(provider);
 
-    let signer: Arc<SignerMiddlewareShort> =
-        Arc::new(SignerMiddleware::new(provider, local_wallet));
-    let signer_data: web::Data<Arc<SignerMiddlewareShort>> = web::Data::new(signer);
+    let signer_data: web::Data<DynProvider> = web::Data::new(provider);
 
     // Initialize iota_state (client, did, etc.), create or load issuer's identity.
     let iota_state = IotaState::init(&db_pool, args.dlt_config, args.key_storage_config).await?;

@@ -2,7 +2,7 @@
 # 1 - Build Stage
 # ---------------------------------------------------
 
-FROM rust:1.81-alpine AS issuer-build
+FROM rust:1.86-alpine AS issuer-build
 WORKDIR /app
 COPY ./server .
 COPY ./smart-contracts /smart-contracts
