@@ -40,7 +40,7 @@ pub async fn update_identity_sc(
         wallet_sign_bytes.into(), 
         challenge_bytes.into()
     );
-    let pending_tx = call.send().await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
+    let pending_tx = call.send().await.map_err(|err| IssuerError::ContractError(format!("User registration failed: {}",err.to_string())))?;
     let receipt = pending_tx.confirmations(1).await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
 
     let logs = receipt.ok_or(IssuerError::OtherError("No receipt".to_owned()))?.logs;

@@ -74,7 +74,7 @@ async fn issue_credential (
   
   let credential_id: U256 = identity_sc.get_free_v_cid().call()
     .await
-    .map_err(|err| IssuerError::ContractError(err.to_string()))?;
+    .map_err(|err| IssuerError::ContractError(format!("VC ID request failed: {}",err.to_string())))?;
 
   let mut credential_id_url = Url::parse(issuer_url.as_str())
     .map_err(|_|IssuerError::OtherError("Parsing error".to_owned()))?;
@@ -97,7 +97,7 @@ async fn issue_credential (
   log::info!("signature {:?}", wallet_sign);
   let vm = holder_document.resolve_method("#ethAddress", None).ok_or(IssuerError::EthMethodNotFound)?;
 
-  vm.type_().to_string().eq("EcdsaSecp256k1RecoverySignature2020").then(|| Some(())).ok_or(IssuerError::InvalidVerificationMethodType)?;
+  vm.type_().to_string().eq("EcdsaSecp256k1RecoveryMethod2020").then(|| Some(())).ok_or(IssuerError::InvalidVerificationMethodType)?;
   
   let eth_addr = vm.data().custom()
   .take_if(|method_data| {method_data.name == "blockchainAccountId"} )
