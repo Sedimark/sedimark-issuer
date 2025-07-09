@@ -1,27 +1,20 @@
 use std::sync::Arc;
 
-use ethers::abi::RawLog;
-use ethers::contract::EthEvent;
-use ethers::providers::{Provider, Http};
-use ethers::prelude::k256::ecdsa::SigningKey;
-use ethers::prelude::SignerMiddleware;
-use ethers::prelude::Wallet;
-use ethers::types::Bytes;
-use ethers::core::types::U256;
+use alloy::hex::FromHex;
 
-use ethers::utils::hex::FromHex;
+use alloy::primitives::Bytes;
+use alloy::primitives::U256;
+use alloy::providers::DynProvider;
+use alloy::sol_types::SolEvent;
 use identity_iota::credential::DecodedJwtCredential;
-
-use crate::contracts::identity::Identity;
-use crate::contracts::identity::VcAddedFilter;
+use crate::contracts::Identity::IdentityInstance;
+use crate::contracts::Identity::VC_added;
 use crate::errors::IssuerError;
-
-pub type SignerMiddlewareShort = SignerMiddleware<Provider<Http>, Wallet<SigningKey>>;
 
 
 
 pub async fn update_identity_sc(
-    identity_sc: Identity<&Arc<SignerMiddlewareShort>>,
+    identity_sc: IdentityInstance<Arc<DynProvider>>,
     decoded_jwt_credential: DecodedJwtCredential, 
     credential_id: U256,
     challenge: String, 
@@ -32,28 +25,30 @@ pub async fn update_identity_sc(
     let challenge_bytes = Bytes::from(challenge.into_bytes());
     let expiration_date = U256::from(decoded_jwt_credential.credential.expiration_date.ok_or(IssuerError::OtherError("Expiration date not found".to_owned()))?.to_unix());
     let issuance_date = U256::from(decoded_jwt_credential.credential.issuance_date.to_unix());
-      
-    let call = identity_sc.add_user(
+    
+    let call = identity_sc.addUser(
         credential_id, 
         expiration_date,
         issuance_date,
         wallet_sign_bytes.into(), 
         challenge_bytes.into()
-    );
-    let pending_tx = call.send().await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
-    let receipt = pending_tx.confirmations(1).await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
+    )
+    .gas_price(10_000_000_000)
+    ;
 
-    let logs = receipt.ok_or(IssuerError::OtherError("No receipt".to_owned()))?.logs;
+    let receipt = call
+        .send()
+        .await
+        .map_err(|err| IssuerError::ContractError(format!("User registration failed: {}",err.to_string())))?
+        .get_receipt()
+        .await
+        .map_err(|err| IssuerError::ContractError(format!("User registration failed: {}",err.to_string())))?;
 
     // reading the log   
-    for log in logs.iter() {
-        let raw_log = RawLog {
-            topics: log.topics.clone(),
-            data: log.data.to_vec(),
-        };
+    for log in receipt.logs() {
         // finding the event
-        if let Ok(event) =  <VcAddedFilter as EthEvent>::decode_log(&raw_log){
-            log::info!("VcAdded event:\n{:?}", event);
+        if let Ok(event) =  <VC_added as SolEvent>::decode_log(&log.inner){
+            log::info!("VcAdded event:\n{:?}", event.reserialize());
             return Ok(());
         }
     }

@@ -2,29 +2,29 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::ops::Deref;
+use std::str::FromStr;
+
 use actix_cors::Cors;
 use actix_web::{http, middleware::Logger, web, App, HttpServer};
+use alloy::network::Ethereum;
+use alloy::primitives::{Address, U256};
+use alloy::providers::{DynProvider, ProviderBuilder};
+use alloy::signers::local::PrivateKeySigner;
+use alloy::sol_types::SolEvent;
 use deadpool_postgres::Pool;
 #[cfg(debug_assertions)]
 use dotenv::dotenv;
-use ethers::abi::RawLog;
-use ethers::contract::EthEvent;
-use ethers::middleware::SignerMiddleware;
-use ethers::providers::{Http, Provider};
-use ethers::signers::{LocalWallet, Signer};
-use ethers::types::Address;
-use ethers::core::types::U256;
-use mediterraneus_issuer::contracts::{Identity, VcRevokedFilter};
+use mediterraneus_issuer::contracts::Identity::VC_Revoked;
+use mediterraneus_issuer::contracts::{Identity};
 use mediterraneus_issuer::errors::IssuerError;
 use mediterraneus_issuer::handlers::{challenges_handler, credentials_handler};
 use mediterraneus_issuer::repository::postgres_repo::init;
 use mediterraneus_issuer::utils::configs::{
     Commands, DLTConfig, DatabaseConfig, HttpServerConfig, IssuerConfig, KeyStorageConfig
 };
-use mediterraneus_issuer::utils::eth::SignerMiddlewareShort;
+
 use mediterraneus_issuer::utils::iota::IotaState;
-use std::sync::Arc;
-use std::str::FromStr;
 
 use clap::Parser;
 
@@ -71,34 +71,31 @@ async fn main() -> anyhow::Result<()> {
 
     // Initialize provider
     let rpc_provider = &args.dlt_config.rpc_provider;
-    let chain_id = args.dlt_config.chain_id;
 
     // Transactions will be signed with the private key below
-    let local_wallet = ((&args
-        .issuer_config
-        .issuer_private_key
-        .value()))
-        .parse::<LocalWallet>()?
-        .with_chain_id(chain_id);
-    let provider = Provider::<Http>::try_from(rpc_provider)?;
-
-    let signer: Arc<SignerMiddlewareShort> =
-        Arc::new(SignerMiddleware::new(provider, local_wallet));
-    let signer_data: web::Data<Arc<SignerMiddlewareShort>> = web::Data::new(signer.clone());
+    let signer = args.issuer_config.issuer_private_key.value().parse::<PrivateKeySigner>()?;
+    let provider = ProviderBuilder::new()
+        .wallet(signer)
+        .connect_http(rpc_provider.deref().clone());
+    let provider = DynProvider::<Ethereum>::new(provider);
 
     // Initialize iota_state (client, did, etc.), create or load issuer's identity.
     let iota_state = IotaState::init(&db_pool, args.dlt_config, args.key_storage_config).await?;
     let iota_state_data = web::Data::new(iota_state);
     
     match args.commands {
-        None => start_server(db_pool, signer_data, iota_state_data, args.issuer_config, args.http_server_config).await,
-        Some(Commands::Revoke { credential }) => revoke_credential(args.issuer_config, signer, credential).await,
+        None => 
+            {
+                let signer_data: web::Data<DynProvider> = web::Data::new(provider);
+                start_server(db_pool, signer_data, iota_state_data, args.issuer_config, args.http_server_config).await
+            },
+        Some(Commands::Revoke { credential }) => revoke_credential(args.issuer_config, provider, credential).await,
     }
 
 }
 
 async fn start_server(db_pool: Pool, 
-    signer_data: web::Data<Arc<SignerMiddlewareShort>>, 
+    signer_data: web::Data<DynProvider>, 
     iota_state_data: web::Data<IotaState>,
     issuer_config: IssuerConfig,
     http_config: HttpServerConfig) 
@@ -134,26 +131,26 @@ async fn start_server(db_pool: Pool,
         .map_err(anyhow::Error::from)
 }
 
-async fn revoke_credential(issuer_config: IssuerConfig, signer: Arc<SignerMiddlewareShort>, credential_id: i64) -> Result<(), anyhow::Error> {
+async fn revoke_credential(issuer_config: IssuerConfig, signer: DynProvider, credential_id: i64) -> Result<(), anyhow::Error> {
     // Middleware authenticated the holder, the issuer can delete the account from the Identity SC
     let identity_addr: Address = Address::from_str(&issuer_config.identity_sc_address).map_err(|_| IssuerError::ContractAddressRecoveryError)?;
     let identity_sc = Identity::new(identity_addr, signer);
     
-    let call = identity_sc.revoke_vc(U256::from(credential_id));
-    let pending_tx = call.send().await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
-    let receipt = pending_tx.confirmations(1).await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
-
-    let logs = receipt.ok_or(IssuerError::OtherError("No receipt".to_owned()))?.logs;
+    let call = identity_sc.revokeVC(U256::from(credential_id));
+    let receipt = call
+        .gas_price(10_000_000_000)
+        .send()
+        .await
+        .map_err(|err| IssuerError::ContractError(err.to_string()))?
+        .get_receipt()
+        .await
+        .map_err(|err| IssuerError::ContractError(err.to_string()))?;
 
     // reading the log   
-    for log in logs.iter() {
-        let raw_log = RawLog {
-            topics: log.topics.clone(),
-            data: log.data.to_vec(),
-        };
+    for log in receipt.logs() {
         // finding the event
-        if let Ok(event) =  <VcRevokedFilter as EthEvent>::decode_log(&raw_log){
-            log::info!("VcRevoked event:\n{:?}", event);
+        if let Ok(_) =  <VC_Revoked as SolEvent>::decode_log(&log.inner){
+            log::info!("VcRevoked event:\n{:?}", log);
             return Ok(());
         }
     }

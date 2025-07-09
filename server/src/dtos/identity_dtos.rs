@@ -2,8 +2,8 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use alloy::primitives::U256;
 use identity_iota::credential::Jwt;
-use iota_sdk::U256;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Debug)]

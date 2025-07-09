@@ -34,7 +34,7 @@ pub enum IssuerError {
     InvalidVerificationMethodType,
     // Smart Contracts Errors
     #[error("Public key recovery error")]
-    SignatureError(#[from] ethers::types::SignatureError),
+    SignatureError(#[from] alloy::primitives::SignatureError),
     #[error("Address recovery error")]
     AddressRecoveryError,
     #[error("Contract error: {0}")]
