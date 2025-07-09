@@ -4,7 +4,7 @@
 
 use std::{convert::Infallible, str::FromStr};
 
-use clap::Args;
+use clap::{Args, Subcommand};
 use zeroize::ZeroizeOnDrop;
 
 /// Simple configuration of a generic secret read from Args.
@@ -116,3 +116,9 @@ pub struct IssuerConfig {
     pub issuer_url: IssuerUrl
 }
 
+#[derive(Debug, Subcommand)]
+pub enum Commands {
+    Revoke {
+        credential: i64
+    }
+}

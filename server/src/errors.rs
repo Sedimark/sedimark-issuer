@@ -52,6 +52,9 @@ pub enum IssuerError {
     #[error("Pool error")]
     PoolError(#[from] PoolError),
     
+    //Identity Errors
+    #[error("Verifiable Credential error, reason: {0}")]
+    CredentialNotFoundError(&'static str),
     #[error("Middleware error: {0}")]
     MiddlewareError(String),
 
@@ -77,9 +80,9 @@ impl ResponseError for IssuerError {
             IssuerError::InvalidOrPendingRequestError => StatusCode::BAD_REQUEST,
             IssuerError::NonExistingRequestError => StatusCode::NOT_FOUND,
             IssuerError::InvalidIdentitySignatureError => StatusCode::BAD_REQUEST,
-            IssuerError::IdentityIotaError(_) => StatusCode::INTERNAL_SERVER_ERROR, //TODO: check error code
-            IssuerError::IotaClientError(_) => StatusCode::INTERNAL_SERVER_ERROR, //TODO: check error code
-            IssuerError::IotaDidError(_) => StatusCode::INTERNAL_SERVER_ERROR, //TODO: check error code
+            IssuerError::IdentityIotaError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+                        IssuerError::IotaClientError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            IssuerError::IotaDidError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             IssuerError::RowNotFound => StatusCode::NOT_FOUND,
             IssuerError::TokioPostgresError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             IssuerError::TokioPostgresMapperError(_) => StatusCode::INTERNAL_SERVER_ERROR,
@@ -89,10 +92,11 @@ impl ResponseError for IssuerError {
             IssuerError::InvalidVerificationMethodType => StatusCode::BAD_REQUEST,
             IssuerError::SignatureError(_) => StatusCode::BAD_REQUEST,
             IssuerError::AddressRecoveryError => StatusCode::BAD_REQUEST,
-            IssuerError::MiddlewareError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            IssuerError::MiddlewareError(_) => StatusCode::UNAUTHORIZED,
             IssuerError::ContractAddressRecoveryError => StatusCode::INTERNAL_SERVER_ERROR,
             IssuerError::ContractError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             IssuerError::OtherError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        }
+            IssuerError::CredentialNotFoundError(_) => StatusCode::UNAUTHORIZED,
+                    }
     }
 }

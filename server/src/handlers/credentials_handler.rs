@@ -4,7 +4,7 @@
 
 use std::str::FromStr;
 
-use actix_web::{web, HttpResponse, Responder, post, delete};
+use actix_web::{delete, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use alloy::primitives::{Address, U256};
 use alloy::providers::DynProvider;
 use alloy::signers::Signature;
@@ -27,8 +27,8 @@ use crate::utils::configs::{IdentityScAddress, IssuerUrl};
 use crate::utils::eth::{update_identity_sc};
 use crate::utils::iota::{create_credential, IotaState};
 
-// use actix_web_lab::middleware::from_fn;
-// use crate::middlewares::ver_presentation_jwt::verify_presentation_jwt;
+use actix_web_lab::middleware::from_fn;
+use crate::middlewares::ver_presentation_jwt::{verify_presentation_jwt, VerifiedPresentation};
 
 #[post("/credentials")]
 async fn issue_credential (
@@ -138,14 +138,25 @@ async fn issue_credential (
   Ok(HttpResponse::Ok().json(response))
 }
 
-#[delete("/credentials/{credential_id}")] //, wrap = "from_fn(verify_presentation_jwt)")]
+#[delete("/credentials/{credential_id}", wrap = "from_fn(verify_presentation_jwt)")]
 async fn revoke_credential (
+    req: HttpRequest,
     path: web::Path<i64>,
     eth_provider: web::Data<DynProvider>,
     identity_sc_address: web::Data<String>,
 ) -> Result<impl Responder, IssuerError> {
+
     log::info!("Revoking credential...");
+    // Ensure that the VC verified is exactly the one requested from the user
     let credential_id = path.into_inner();
+    let verfied_data = req.extensions().get::<VerifiedPresentation>()
+        .ok_or(IssuerError::MiddlewareError("Middleware result not found".to_owned())).cloned()?;
+    
+    if credential_id.ne(&verfied_data.vc_id){
+        return Err(IssuerError::CredentialNotFoundError("Credential ID does not match with the requested one"));
+    }
+
+    // Middleware authenticated the holder, the issuer can delete the account from the Identity SC
     let client = eth_provider.get_ref().clone();
     let identity_addr: Address = Address::from_str(&identity_sc_address).map_err(|_| IssuerError::ContractAddressRecoveryError)?;
     let identity_sc = Identity::new(identity_addr, client);
