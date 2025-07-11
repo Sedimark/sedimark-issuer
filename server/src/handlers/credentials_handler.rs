@@ -18,12 +18,11 @@ use identity_iota::document::verifiable::JwsVerificationOptions;
 use identity_iota::iota::{IotaDID, IotaIdentityClientExt};
 use serde_json::json;
 
-use crate::contracts::Identity::VC_Revoked;
-use crate::contracts::{Identity};
+use crate::contracts::Identity::{IdentityInstance, VC_Revoked};
 use crate::dtos::identity_dtos::{CredentialRequestDTO, CredentialIssuedResponse};
 use crate::errors::IssuerError;
 use crate::repository::operations::HoldersChallengesExt;
-use crate::utils::configs::{IdentityScAddress, IssuerUrl};
+use crate::utils::configs::IssuerUrl;
 use crate::utils::eth::{update_identity_sc};
 use crate::utils::iota::{create_credential, IotaState};
 
@@ -35,9 +34,8 @@ async fn issue_credential (
   req_body: web::Json<CredentialRequestDTO>, 
   pool: web::Data<Pool>,
   iota_state: web::Data<IotaState>,
-  signer_data: web::Data<DynProvider>,
+  identity_sc: web::Data<IdentityInstance<DynProvider>>,
   issuer_url: web::Data<IssuerUrl>,
-  identity_sc_address: web::Data<IdentityScAddress>
 ) -> Result<impl Responder, IssuerError> {
   log::info!("Issuing credential...");
 
@@ -66,11 +64,6 @@ async fn issue_credential (
       &EdDSAJwsVerifier::default(),
       &JwsVerificationOptions::default().nonce(&holder_request.challenge),
   )?;
-
-  // Get the first free credential id from Identity Smart Contract
-  log::debug!("Address: {}", identity_sc_address.as_str());
-  let identity_addr: Address = Address::from_str(&identity_sc_address).map_err(|_| IssuerError::ContractAddressRecoveryError)?;
-  let identity_sc = Identity::new(identity_addr, signer_data.into_inner());
   
   let credential_id: U256 = identity_sc
     .getFreeVCid()
@@ -142,8 +135,7 @@ async fn issue_credential (
 async fn revoke_credential (
     req: HttpRequest,
     path: web::Path<i64>,
-    eth_provider: web::Data<DynProvider>,
-    identity_sc_address: web::Data<String>,
+    identity_sc: web::Data<IdentityInstance<DynProvider>>
 ) -> Result<impl Responder, IssuerError> {
 
     log::info!("Revoking credential...");
@@ -155,11 +147,6 @@ async fn revoke_credential (
     if credential_id.ne(&verfied_data.vc_id){
         return Err(IssuerError::CredentialNotFoundError("Credential ID does not match with the requested one"));
     }
-
-    // Middleware authenticated the holder, the issuer can delete the account from the Identity SC
-    let client = eth_provider.get_ref().clone();
-    let identity_addr: Address = Address::from_str(&identity_sc_address).map_err(|_| IssuerError::ContractAddressRecoveryError)?;
-    let identity_sc = Identity::new(identity_addr, client);
     
     let receipt = identity_sc.revokeVC(U256::from(credential_id))
         .gas_price(10_000_000_000)

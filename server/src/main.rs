@@ -4,27 +4,28 @@
 
 use std::ops::Deref;
 use std::str::FromStr;
+use std::time::Duration;
 
 use actix_cors::Cors;
 use actix_web::{http, middleware::Logger, web, App, HttpServer};
 use alloy::network::Ethereum;
 use alloy::primitives::{Address, U256};
-use alloy::providers::{DynProvider, ProviderBuilder};
+use alloy::providers::{DynProvider, Provider, ProviderBuilder};
 use alloy::signers::local::PrivateKeySigner;
 use alloy::sol_types::SolEvent;
 use deadpool_postgres::Pool;
 #[cfg(debug_assertions)]
 use dotenv::dotenv;
-use mediterraneus_issuer::contracts::Identity::VC_Revoked;
-use mediterraneus_issuer::contracts::{Identity};
-use mediterraneus_issuer::errors::IssuerError;
-use mediterraneus_issuer::handlers::{challenges_handler, credentials_handler};
-use mediterraneus_issuer::repository::postgres_repo::init;
-use mediterraneus_issuer::utils::configs::{
+use lib_issuer::contracts::Identity::{IdentityInstance, VC_Revoked};
+use lib_issuer::contracts::{Identity};
+use lib_issuer::errors::IssuerError;
+use lib_issuer::handlers::{challenges_handler, credentials_handler};
+use lib_issuer::repository::postgres_repo::init;
+use lib_issuer::utils::configs::{
     Commands, DLTConfig, DatabaseConfig, HttpServerConfig, IssuerConfig, KeyStorageConfig
 };
 
-use mediterraneus_issuer::utils::iota::IotaState;
+use lib_issuer::utils::iota::IotaState;
 
 use clap::Parser;
 
@@ -77,7 +78,10 @@ async fn main() -> anyhow::Result<()> {
     let provider = ProviderBuilder::new()
         .wallet(signer)
         .connect_http(rpc_provider.deref().clone());
+    provider.client().set_poll_interval(Duration::from_millis(500));
     let provider = DynProvider::<Ethereum>::new(provider);
+    let identity_address = Address::from_str(&args.issuer_config.identity_sc_address)?;
+    let identity_sc = Identity::new(identity_address, provider);
 
     // Initialize iota_state (client, did, etc.), create or load issuer's identity.
     let iota_state = IotaState::init(&db_pool, args.dlt_config, args.key_storage_config).await?;
@@ -86,16 +90,16 @@ async fn main() -> anyhow::Result<()> {
     match args.commands {
         None => 
             {
-                let signer_data: web::Data<DynProvider> = web::Data::new(provider);
-                start_server(db_pool, signer_data, iota_state_data, args.issuer_config, args.http_server_config).await
+                let identity_sc= web::Data::new(identity_sc);
+                start_server(db_pool, identity_sc, iota_state_data, args.issuer_config, args.http_server_config).await
             },
-        Some(Commands::Revoke { credential }) => revoke_credential(args.issuer_config, provider, credential).await,
+        Some(Commands::Revoke { credential }) => revoke_credential(identity_sc, credential).await,
     }
 
 }
 
 async fn start_server(db_pool: Pool, 
-    signer_data: web::Data<DynProvider>, 
+    signer_data: web::Data<IdentityInstance<DynProvider>>, 
     iota_state_data: web::Data<IotaState>,
     issuer_config: IssuerConfig,
     http_config: HttpServerConfig) 
@@ -131,11 +135,7 @@ async fn start_server(db_pool: Pool,
         .map_err(anyhow::Error::from)
 }
 
-async fn revoke_credential(issuer_config: IssuerConfig, signer: DynProvider, credential_id: i64) -> Result<(), anyhow::Error> {
-    // Middleware authenticated the holder, the issuer can delete the account from the Identity SC
-    let identity_addr: Address = Address::from_str(&issuer_config.identity_sc_address).map_err(|_| IssuerError::ContractAddressRecoveryError)?;
-    let identity_sc = Identity::new(identity_addr, signer);
-    
+async fn revoke_credential(identity_sc: IdentityInstance<DynProvider>, credential_id: i64) -> Result<(), anyhow::Error> {    
     let call = identity_sc.revokeVC(U256::from(credential_id));
     let receipt = call
         .gas_price(10_000_000_000)

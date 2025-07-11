@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use alloy::hex::FromHex;
 
 use alloy::primitives::Bytes;
@@ -14,7 +12,7 @@ use crate::errors::IssuerError;
 
 
 pub async fn update_identity_sc(
-    identity_sc: IdentityInstance<Arc<DynProvider>>,
+    identity_sc: actix_web::web::Data<IdentityInstance<DynProvider>>,
     decoded_jwt_credential: DecodedJwtCredential, 
     credential_id: U256,
     challenge: String, 
