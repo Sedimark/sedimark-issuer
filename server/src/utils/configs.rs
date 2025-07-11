@@ -4,6 +4,7 @@
 
 use std::{convert::Infallible, str::FromStr};
 
+use alloy::primitives::Address;
 use clap::{Args, Subcommand};
 use zeroize::ZeroizeOnDrop;
 
@@ -98,16 +99,22 @@ pub struct DLTConfig {
     /// Faucet API endpoint
     #[arg(long, env, required = true)]
     pub faucet_api_endpoint: String,
+
+    /// Issuer Smart Contract address
+    #[arg(long, env, required = true)]
+    pub identity_sc_address: Address,    
+    /// Factory Smart Contract address
+    #[arg(long, env, required = true)]
+    pub factory_sc_address: Address,    
+    /// Fixed Rate Exchange Smart Contract address
+    #[arg(long, env, required = true)]
+    pub fresc_sc_address: Address,
 }
 
 pub type IssuerUrl = identity_iota::core::Url;
-pub type IdentityScAddress = String;
 /// Issuer parameters configuration
 #[derive(Debug, Args)]
 pub struct IssuerConfig {
-    /// Issuer Smart Contract address
-    #[arg(long, env, required = true)]
-    pub identity_sc_address: IdentityScAddress,
     /// Issuer private key address
     #[arg(long, env, required = true)]
     pub issuer_private_key: ConfigSecret,

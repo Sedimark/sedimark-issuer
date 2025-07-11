@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::ops::Deref;
-use std::str::FromStr;
 use std::time::Duration;
 
 use actix_cors::Cors;
 use actix_web::{http, middleware::Logger, web, App, HttpServer};
 use alloy::network::Ethereum;
-use alloy::primitives::{Address, U256};
+use alloy::primitives::U256;
 use alloy::providers::{DynProvider, Provider, ProviderBuilder};
 use alloy::signers::local::PrivateKeySigner;
 use alloy::sol_types::SolEvent;
@@ -80,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
         .connect_http(rpc_provider.deref().clone());
     provider.client().set_poll_interval(Duration::from_millis(500));
     let provider = DynProvider::<Ethereum>::new(provider);
-    let identity_address = Address::from_str(&args.issuer_config.identity_sc_address)?;
+    let identity_address = args.dlt_config.identity_sc_address;
     let identity_sc = Identity::new(identity_address, provider);
 
     // Initialize iota_state (client, did, etc.), create or load issuer's identity.
@@ -99,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn start_server(db_pool: Pool, 
-    signer_data: web::Data<IdentityInstance<DynProvider>>, 
+    sc_instance: web::Data<IdentityInstance<DynProvider>>, 
     iota_state_data: web::Data<IotaState>,
     issuer_config: IssuerConfig,
     http_config: HttpServerConfig) 
@@ -117,9 +116,8 @@ async fn start_server(db_pool: Pool,
 
             App::new()
                 .app_data(web::Data::new(db_pool.clone()))
-                .app_data(signer_data.clone())
+                .app_data(sc_instance.clone())
                 .app_data(iota_state_data.clone())
-                .app_data(web::Data::new(issuer_config.identity_sc_address.clone()))
                 .app_data(web::Data::new(issuer_config.issuer_url.clone()))
                 .service(
                     web::scope("/api")
