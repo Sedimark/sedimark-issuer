@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 
+use alloy::primitives::Address;
 use anyhow::{Context, Result};
 use deadpool_postgres::Pool;
 use identity_iota::{iota::{IotaClientExt, IotaDID, IotaIdentityClientExt, NetworkName}, prelude::IotaDocument, storage::{JwkDocumentExt, JwkMemStore, Storage}, verification::{jws::JwsAlgorithm, MethodScope}
@@ -39,6 +40,12 @@ use super::configs::{ConfigSecret, DLTConfig, KeyStorageConfig};
 
 pub type MemStorage = Storage<StrongholdStorage, StrongholdStorage>;
 
+pub struct SCAddresses{
+    pub factory: Address,
+    pub identity: Address,
+    pub fresc: Address
+}
+
 pub struct IotaState {
     pub client: Client,
     pub key_storage: MemStorage,
@@ -46,6 +53,7 @@ pub struct IotaState {
     pub issuer_identity: IssuerIdentity,
     pub issuer_document: IotaDocument,
     pub faucet_url: String,
+    pub addresses: SCAddresses
 }
 
 impl IotaState {
@@ -102,6 +110,11 @@ impl IotaState {
             }
         };
 
+        let addresses = SCAddresses{
+            factory: dlt_configuration.factory_sc_address,
+            identity: dlt_configuration.identity_sc_address,
+            fresc: dlt_configuration.fresc_sc_address};
+
         let iota_state = IotaState {
             client,
             key_storage,
@@ -109,6 +122,7 @@ impl IotaState {
             issuer_identity,
             issuer_document,
             faucet_url,
+            addresses
         };
         Ok(iota_state)
     }

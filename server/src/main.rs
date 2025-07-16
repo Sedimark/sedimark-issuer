@@ -18,7 +18,7 @@ use dotenv::dotenv;
 use lib_issuer::contracts::Identity::{IdentityInstance, VC_Revoked};
 use lib_issuer::contracts::{Identity};
 use lib_issuer::errors::IssuerError;
-use lib_issuer::handlers::{challenges_handler, credentials_handler};
+use lib_issuer::handlers::{addresses_handler, challenges_handler, credentials_handler};
 use lib_issuer::repository::postgres_repo::init;
 use lib_issuer::utils::configs::{
     Commands, DLTConfig, DatabaseConfig, HttpServerConfig, IssuerConfig, KeyStorageConfig
@@ -122,7 +122,8 @@ async fn start_server(db_pool: Pool,
                 .service(
                     web::scope("/api")
                         .configure(credentials_handler::scoped_config)
-                        .configure(challenges_handler::scoped_config),
+                        .configure(challenges_handler::scoped_config)
+                        .configure(addresses_handler::scoped_config),
                 )
                 .wrap(cors)
                 .wrap(Logger::default())
