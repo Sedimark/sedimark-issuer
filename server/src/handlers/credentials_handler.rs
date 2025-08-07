@@ -118,7 +118,8 @@ async fn issue_credential (
       credential_id, 
       holder_request.challenge,
       &credential_request.wallet_signature, 
-  ).await?;
+  ).await
+  .inspect_err(|err| log::error!("{}", err))?;
 
   pg_client.remove_challenge(&holder_document.id().to_string()).await?;
 

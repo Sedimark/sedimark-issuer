@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use alloy::hex::FromHex;
 
 use alloy::primitives::Bytes;
@@ -38,6 +40,7 @@ pub async fn update_identity_sc(
         .send()
         .await
         .map_err(|err| IssuerError::ContractError(format!("User registration failed: {}",err.to_string())))?
+        .with_timeout(Some(Duration::from_secs(20)))
         .get_receipt()
         .await
         .map_err(|err| IssuerError::ContractError(format!("User registration failed: {}",err.to_string())))?;
