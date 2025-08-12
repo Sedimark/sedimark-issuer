@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::str::FromStr;
+use std::time::Duration;
 
 use actix_web::{delete, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use alloy::primitives::{Address, U256};
@@ -154,6 +155,7 @@ async fn revoke_credential (
         .send()
         .await
         .map_err(|err| IssuerError::ContractError(err.to_string()))?
+        .with_timeout(Some(Duration::from_secs(20)))
         .get_receipt()
         .await
         .map_err(|err| IssuerError::ContractError(err.to_string()))?;
