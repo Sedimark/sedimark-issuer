@@ -4,8 +4,8 @@
 
 use std::{convert::Infallible, str::FromStr};
 
+use alloy::primitives::Address;
 use clap::{Args, Subcommand};
-use identity_iota::core::Url;
 use zeroize::ZeroizeOnDrop;
 
 /// Simple configuration of a generic secret read from Args.
@@ -86,7 +86,7 @@ pub struct HttpServerConfig {
 pub struct DLTConfig {
     /// JSON RPC provider url
     #[arg(long, env, required = true)]
-    pub rpc_provider: String,
+    pub rpc_provider: identity_iota::core::Url,
 
     /// Chain id
     #[arg(long, env, required = true)]
@@ -99,16 +99,22 @@ pub struct DLTConfig {
     /// Faucet API endpoint
     #[arg(long, env, required = true)]
     pub faucet_api_endpoint: String,
+
+    /// Issuer Smart Contract address
+    #[arg(long, env, required = true)]
+    pub identity_sc_address: Address,    
+    /// Factory Smart Contract address
+    #[arg(long, env, required = true)]
+    pub factory_sc_address: Address,    
+    /// Fixed Rate Exchange Smart Contract address
+    #[arg(long, env, required = true)]
+    pub fresc_sc_address: Address,
 }
 
-pub type IssuerUrl = Url;
-pub type IdentityScAddress = String;
+pub type IssuerUrl = identity_iota::core::Url;
 /// Issuer parameters configuration
 #[derive(Debug, Args)]
 pub struct IssuerConfig {
-    /// Issuer Smart Contract address
-    #[arg(long, env, required = true)]
-    pub identity_sc_address: IdentityScAddress,
     /// Issuer private key address
     #[arg(long, env, required = true)]
     pub issuer_private_key: ConfigSecret,

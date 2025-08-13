@@ -4,3 +4,4 @@
 
 pub mod credentials_handler;
 pub mod challenges_handler;
+pub mod addresses_handler;

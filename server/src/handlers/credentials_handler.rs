@@ -3,28 +3,30 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use std::str::FromStr;
-use std::sync::Arc;
+use std::time::Duration;
 
 use actix_web::{delete, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
+use alloy::primitives::{Address, U256};
+use alloy::providers::{DynProvider, Provider};
+use alloy::signers::k256::ecdsa::SigningKey;
+use alloy::signers::local::LocalSigner;
+use alloy::signers::Signature;
+use alloy::sol_types::SolEvent;
 use deadpool_postgres::Pool;
-
-use ethers::abi::RawLog;
-use ethers::contract::EthEvent;
-use ethers::core::types::U256;
-use ethers::types::{Address, Signature};
 
 use identity_eddsa_verifier::EdDSAJwsVerifier;
 use identity_iota::core::{Timestamp, Url};
 use identity_iota::credential::Jws;
 use identity_iota::document::verifiable::JwsVerificationOptions;
 use identity_iota::iota::{IotaDID, IotaIdentityClientExt};
+use serde_json::json;
 
-use crate::contracts::identity::{Identity, VcRevokedFilter};
+use crate::contracts::Identity::{IdentityInstance, VC_Revoked};
 use crate::dtos::identity_dtos::{CredentialRequestDTO, CredentialIssuedResponse};
 use crate::errors::IssuerError;
 use crate::repository::operations::HoldersChallengesExt;
-use crate::utils::configs::{IdentityScAddress, IssuerUrl};
-use crate::utils::eth::{update_identity_sc, SignerMiddlewareShort};
+use crate::utils::configs::IssuerUrl;
+use crate::utils::eth::{update_identity_sc};
 use crate::utils::iota::{create_credential, IotaState};
 
 use actix_web_lab::middleware::from_fn;
@@ -35,9 +37,9 @@ async fn issue_credential (
   req_body: web::Json<CredentialRequestDTO>, 
   pool: web::Data<Pool>,
   iota_state: web::Data<IotaState>,
-  signer_data: web::Data<Arc<SignerMiddlewareShort>>,
+  identity_sc: web::Data<IdentityInstance<DynProvider>>,
   issuer_url: web::Data<IssuerUrl>,
-  identity_sc_address: web::Data<IdentityScAddress>
+  signer: web::Data<LocalSigner<SigningKey>>
 ) -> Result<impl Responder, IssuerError> {
   log::info!("Issuing credential...");
 
@@ -66,15 +68,12 @@ async fn issue_credential (
       &EdDSAJwsVerifier::default(),
       &JwsVerificationOptions::default().nonce(&holder_request.challenge),
   )?;
-
-  // Get the first free credential id from Identity Smart Contract
-  log::debug!("Address: {}", identity_sc_address.as_str());
-  let identity_addr: Address = Address::from_str(&identity_sc_address).map_err(|_| IssuerError::ContractAddressRecoveryError)?;
-  let identity_sc = Identity::new(identity_addr, signer_data.get_ref().into());
   
-  let credential_id: U256 = identity_sc.get_free_v_cid().call()
+  let credential_id: U256 = identity_sc
+    .getFreeVCid()
+    .call()
     .await
-    .map_err(|err| IssuerError::ContractError(err.to_string()))?;
+    .map_err(|err| IssuerError::ContractError(format!("VC ID request failed: {}",err.to_string())))?;
 
   let mut credential_id_url = Url::parse(issuer_url.as_str())
     .map_err(|_|IssuerError::OtherError("Parsing error".to_owned()))?;
@@ -97,7 +96,7 @@ async fn issue_credential (
   log::info!("signature {:?}", wallet_sign);
   let vm = holder_document.resolve_method("#ethAddress", None).ok_or(IssuerError::EthMethodNotFound)?;
 
-  vm.type_().to_string().eq("EcdsaSecp256k1RecoverySignature2020").then(|| Some(())).ok_or(IssuerError::InvalidVerificationMethodType)?;
+  vm.type_().to_string().eq("EcdsaSecp256k1RecoveryMethod2020").then(|| Some(())).ok_or(IssuerError::InvalidVerificationMethodType)?;
   
   let eth_addr = vm.data().custom()
   .take_if(|method_data| {method_data.name == "blockchainAccountId"} )
@@ -110,9 +109,17 @@ async fn issue_credential (
   log::info!("eth addr: {}", eth_addr);
   let address: Address = eth_addr.parse().map_err(|_| IssuerError::AddressRecoveryError)?;
 
-  wallet_sign.verify(holder_request.challenge.clone(), address)?;
+  let recovered_address = wallet_sign.recover_address_from_msg(holder_request.challenge.clone())?;
+  if address.ne(&recovered_address){
+    return Ok(HttpResponse::Unauthorized().json(json!({"error": "Signature verification failed"})))
+  }
   log::info!("Wallet signature verification success!");
   
+  let provider = identity_sc.provider();
+  let nonce = provider.get_transaction_count(signer.address()).await
+    .inspect(|nonce|  log::info!("Next NONCE: {}",nonce))
+    .map_err(|_| IssuerError::OtherError("Cannot read the nonce from the provider".to_owned()))?;
+
   // Update Identity SC, addUser 
   update_identity_sc(
       identity_sc, 
@@ -120,7 +127,9 @@ async fn issue_credential (
       credential_id, 
       holder_request.challenge,
       &credential_request.wallet_signature, 
-  ).await?;
+      nonce
+  ).await
+  .inspect_err(|err| log::error!("{}", err))?;
 
   pg_client.remove_challenge(&holder_document.id().to_string()).await?;
 
@@ -137,8 +146,8 @@ async fn issue_credential (
 async fn revoke_credential (
     req: HttpRequest,
     path: web::Path<i64>,
-    eth_provider: web::Data<Arc<SignerMiddlewareShort>>,
-    identity_sc_address: web::Data<String>,
+    identity_sc: web::Data<IdentityInstance<DynProvider>>,
+    signer: web::Data<LocalSigner<SigningKey>>
 ) -> Result<impl Responder, IssuerError> {
 
     log::info!("Revoking credential...");
@@ -150,27 +159,27 @@ async fn revoke_credential (
     if credential_id.ne(&verfied_data.vc_id){
         return Err(IssuerError::CredentialNotFoundError("Credential ID does not match with the requested one"));
     }
-
-    // Middleware authenticated the holder, the issuer can delete the account from the Identity SC
-    let client = eth_provider.get_ref().clone();
-    let identity_addr: Address = Address::from_str(&identity_sc_address).map_err(|_| IssuerError::ContractAddressRecoveryError)?;
-    let identity_sc = Identity::new(identity_addr, client);
     
-    let call = identity_sc.revoke_vc(U256::from(credential_id));
-    let pending_tx = call.send().await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
-    let receipt = pending_tx.confirmations(1).await.map_err(|err| IssuerError::ContractError(err.to_string()))?;
-
-    let logs = receipt.ok_or(IssuerError::OtherError("No receipt".to_owned()))?.logs;
+    let provider = identity_sc.provider();
+    let nonce = provider.get_transaction_count(signer.address()).await
+        .inspect(|nonce|  log::info!("Next NONCE: {}",nonce))
+        .map_err(|_| IssuerError::OtherError("Cannot read the nonce from the provider".to_owned()))?;
+    let receipt = identity_sc.revokeVC(U256::from(credential_id))
+        .gas_price(10_000_000_000)
+        .nonce(nonce)
+        .send()
+        .await
+        .map_err(|err| IssuerError::ContractError(err.to_string()))?
+        .with_timeout(Some(Duration::from_secs(20)))
+        .get_receipt()
+        .await
+        .map_err(|err| IssuerError::ContractError(err.to_string()))?;
 
     // reading the log   
-    for log in logs.iter() {
-        let raw_log = RawLog {
-            topics: log.topics.clone(),
-            data: log.data.to_vec(),
-        };
+    for log in receipt.logs() {
         // finding the event
-        if let Ok(event) =  <VcRevokedFilter as EthEvent>::decode_log(&raw_log){
-            log::info!("VcRevoked event:\n{:?}", event);
+        if let Ok(event) =  <VC_Revoked as SolEvent>::decode_log(&log.inner){
+            log::info!("VcRevoked event for vc id {:?}", event.vc_id);
             return Ok(HttpResponse::Ok().finish());
         }
     }
