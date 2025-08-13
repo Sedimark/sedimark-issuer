@@ -10,7 +10,8 @@ use actix_web::{http, middleware::Logger, web, App, HttpServer};
 use alloy::network::Ethereum;
 use alloy::primitives::U256;
 use alloy::providers::{DynProvider, Provider, ProviderBuilder};
-use alloy::signers::local::PrivateKeySigner;
+use alloy::signers::k256::ecdsa::SigningKey;
+use alloy::signers::local::{LocalSigner, PrivateKeySigner};
 use alloy::sol_types::SolEvent;
 use deadpool_postgres::Pool;
 #[cfg(debug_assertions)]
@@ -75,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
     // Transactions will be signed with the private key below
     let signer = args.issuer_config.issuer_private_key.value().parse::<PrivateKeySigner>()?;
     let provider = ProviderBuilder::new()
-        .wallet(signer)
+        .wallet(signer.clone())
         .connect_http(rpc_provider.deref().clone());
     provider.client().set_poll_interval(Duration::from_millis(500));
     let provider = DynProvider::<Ethereum>::new(provider);
@@ -90,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
         None => 
             {
                 let identity_sc= web::Data::new(identity_sc);
-                start_server(db_pool, identity_sc, iota_state_data, args.issuer_config, args.http_server_config).await
+                start_server(db_pool, identity_sc, iota_state_data, args.issuer_config, signer, args.http_server_config).await
             },
         Some(Commands::Revoke { credential }) => revoke_credential(identity_sc, credential).await,
     }
@@ -101,6 +102,7 @@ async fn start_server(db_pool: Pool,
     sc_instance: web::Data<IdentityInstance<DynProvider>>, 
     iota_state_data: web::Data<IotaState>,
     issuer_config: IssuerConfig,
+    signer: LocalSigner<SigningKey>, // TODO: remove after debugging
     http_config: HttpServerConfig) 
     -> Result<(), anyhow::Error> {
 
@@ -119,6 +121,7 @@ async fn start_server(db_pool: Pool,
                 .app_data(sc_instance.clone())
                 .app_data(iota_state_data.clone())
                 .app_data(web::Data::new(issuer_config.issuer_url.clone()))
+                .app_data(web::Data::new(signer.clone()))
                 .service(
                     web::scope("/api")
                         .configure(credentials_handler::scoped_config)

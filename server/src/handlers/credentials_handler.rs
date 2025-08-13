@@ -7,7 +7,9 @@ use std::time::Duration;
 
 use actix_web::{delete, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 use alloy::primitives::{Address, U256};
-use alloy::providers::DynProvider;
+use alloy::providers::{DynProvider, Provider};
+use alloy::signers::k256::ecdsa::SigningKey;
+use alloy::signers::local::LocalSigner;
 use alloy::signers::Signature;
 use alloy::sol_types::SolEvent;
 use deadpool_postgres::Pool;
@@ -37,6 +39,7 @@ async fn issue_credential (
   iota_state: web::Data<IotaState>,
   identity_sc: web::Data<IdentityInstance<DynProvider>>,
   issuer_url: web::Data<IssuerUrl>,
+  signer: web::Data<LocalSigner<SigningKey>>
 ) -> Result<impl Responder, IssuerError> {
   log::info!("Issuing credential...");
 
@@ -112,6 +115,11 @@ async fn issue_credential (
   }
   log::info!("Wallet signature verification success!");
   
+  let provider = identity_sc.provider();
+  let nonce = provider.get_transaction_count(signer.address()).await
+    .inspect(|nonce|  log::info!("Next NONCE: {}",nonce))
+    .map_err(|_| IssuerError::OtherError("Cannot read the nonce from the provider".to_owned()))?;
+
   // Update Identity SC, addUser 
   update_identity_sc(
       identity_sc, 
@@ -119,6 +127,7 @@ async fn issue_credential (
       credential_id, 
       holder_request.challenge,
       &credential_request.wallet_signature, 
+      nonce
   ).await
   .inspect_err(|err| log::error!("{}", err))?;
 
@@ -137,7 +146,8 @@ async fn issue_credential (
 async fn revoke_credential (
     req: HttpRequest,
     path: web::Path<i64>,
-    identity_sc: web::Data<IdentityInstance<DynProvider>>
+    identity_sc: web::Data<IdentityInstance<DynProvider>>,
+    signer: web::Data<LocalSigner<SigningKey>>
 ) -> Result<impl Responder, IssuerError> {
 
     log::info!("Revoking credential...");
@@ -150,8 +160,13 @@ async fn revoke_credential (
         return Err(IssuerError::CredentialNotFoundError("Credential ID does not match with the requested one"));
     }
     
+    let provider = identity_sc.provider();
+    let nonce = provider.get_transaction_count(signer.address()).await
+        .inspect(|nonce|  log::info!("Next NONCE: {}",nonce))
+        .map_err(|_| IssuerError::OtherError("Cannot read the nonce from the provider".to_owned()))?;
     let receipt = identity_sc.revokeVC(U256::from(credential_id))
         .gas_price(10_000_000_000)
+        .nonce(nonce)
         .send()
         .await
         .map_err(|err| IssuerError::ContractError(err.to_string()))?

@@ -19,6 +19,7 @@ pub async fn update_identity_sc(
     credential_id: U256,
     challenge: String, 
     wallet_sign: &String, 
+    nonce: u64
 ) -> Result<(), IssuerError> {
 
     let wallet_sign_bytes = Bytes::from(Vec::from_hex(wallet_sign.strip_prefix("0x").ok_or(IssuerError::OtherError("Error during strip prefix".to_owned()))?.to_string()).map_err(|_| IssuerError::OtherError("Conversion error".to_owned()))?);
@@ -34,7 +35,7 @@ pub async fn update_identity_sc(
         challenge_bytes.into()
     )
     .gas_price(10_000_000_000)
-    ;
+    .nonce(nonce);
 
     let receipt = call
         .send()
