@@ -15,7 +15,7 @@ use alloy::sol_types::SolEvent;
 use deadpool_postgres::Pool;
 
 use identity_eddsa_verifier::EdDSAJwsVerifier;
-use identity_iota::core::{Timestamp, Url};
+use identity_iota::core::Timestamp;
 use identity_iota::credential::Jws;
 use identity_iota::document::verifiable::JwsVerificationOptions;
 use identity_iota::iota::{IotaDID, IotaIdentityClientExt};
@@ -75,10 +75,8 @@ async fn issue_credential (
     .await
     .map_err(|err| IssuerError::ContractError(format!("VC ID request failed: {}",err.to_string())))?;
 
-  let mut credential_id_url = Url::parse(issuer_url.as_str())
+  let credential_id_url = issuer_url.join(format!("api/credentials/{}",&credential_id.to_string()).as_str())
     .map_err(|_|IssuerError::OtherError("Parsing error".to_owned()))?;
-
-  credential_id_url.set_path(format!("/api/credentials/{}",&credential_id.to_string()).as_str());
 
   // Create and sign the credential
   let (credential_jwt, decoded_jwt_credential) = create_credential(
